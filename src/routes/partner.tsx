@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { TrendingUp, Activity, CalendarCheck, Cpu, AlertTriangle, Check } from "lucide-react";
+import { TrendingUp, Activity, CalendarCheck, Cpu, AlertTriangle, Check, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PaymentDialog } from "@/components/PaymentDialog";
-import { revenueSeries, saasPlans, kzt } from "@/lib/mock-db";
+import { revenueSeries, saasPlans, kzt, users } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 import { RequireRole } from "@/components/RequireRole";
@@ -37,12 +37,15 @@ const daysLeft = (iso: string) => {
 };
 
 function PartnerPage() {
-  const { clubs, zones: allZones, bookings, payments, updateClub, updateZone, paySaas } = useStore();
+  const { clubs, zones: allZones, bookings, payments, updateClub, updateZone, paySaas, checkInBooking } = useStore();
   const { t } = useI18n();
   const [clubId, setClubId] = useState(clubs[0]!.id);
   const club = clubs.find((c) => c.id === clubId)!;
   const zones = allZones.filter((z) => z.clubId === clubId);
   const clubBookings = bookings.filter((b) => b.clubId === clubId);
+  const today = new Date().toISOString().slice(0, 10);
+  const todayBookings = clubBookings.filter((b) => b.date === today && b.status !== "cancelled");
+  const guest = (userId: string) => users.find((u) => u.id === userId);
   const trialDays = daysLeft(club.trialEndsAt);
   const [planPending, setPlanPending] = useState<(typeof saasPlans)[number] | null>(null);
   const weekRevenue = revenueSeries.reduce((s, d) => s + d.revenue, 0);
@@ -117,13 +120,64 @@ function PartnerPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="bookings" className="neon-panel p-5">
+      <Tabs defaultValue="incoming" className="neon-panel p-5">
         <TabsList className="mb-4">
+          <TabsTrigger value="incoming">{t("partner.tab.incoming")}</TabsTrigger>
           <TabsTrigger value="bookings">{t("partner.tab.bookings")}</TabsTrigger>
           <TabsTrigger value="zones">{t("partner.tab.zones")}</TabsTrigger>
           <TabsTrigger value="club">{t("partner.tab.club")}</TabsTrigger>
           <TabsTrigger value="billing">{t("partner.tab.billing")}</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="incoming">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("partner.bk.guest")}</TableHead>
+                <TableHead>{t("partner.bk.phone")}</TableHead>
+                <TableHead>{t("partner.bk.code")}</TableHead>
+                <TableHead>{t("partner.bk.zone")}</TableHead>
+                <TableHead>{t("partner.bk.time")}</TableHead>
+                <TableHead>{t("partner.bk.status")}</TableHead>
+                <TableHead className="text-right">{t("partner.bk.action")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {todayBookings.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-sm text-muted-foreground">{t("partner.bk.todayEmpty")}</TableCell>
+                </TableRow>
+              )}
+              {todayBookings.map((b) => (
+                <TableRow key={b.id}>
+                  <TableCell className="font-medium">{guest(b.userId)?.name ?? "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">{guest(b.userId)?.phone ?? "—"}</TableCell>
+                  <TableCell className="font-mono font-bold tracking-widest text-accent">{b.code}</TableCell>
+                  <TableCell>{allZones.find((z) => z.id === b.zoneId)?.name ?? "—"} · #{b.seatNo}</TableCell>
+                  <TableCell>{b.startTime} · {b.hours}h</TableCell>
+                  <TableCell>
+                    <Badge variant={b.status === "upcoming" ? "secondary" : "default"}>{t(`booking.${b.status}`)}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {b.status === "upcoming" ? (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          checkInBooking(b.id);
+                          toast.success(`${b.code} · ${t("partner.bk.checkedin")}`);
+                        }}
+                      >
+                        <UserCheck className="size-4" /> {t("partner.bk.checkin")}
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">{t("partner.bk.checkedin")}</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TabsContent>
 
         <TabsContent value="bookings">
           <Table>
@@ -131,6 +185,7 @@ function PartnerPage() {
               <TableRow>
                 <TableHead>{t("partner.bk.zone")}</TableHead>
                 <TableHead>{t("partner.bk.seat")}</TableHead>
+                <TableHead>{t("partner.bk.code")}</TableHead>
                 <TableHead>{t("partner.bk.when")}</TableHead>
                 <TableHead>{t("partner.bk.hours")}</TableHead>
                 <TableHead>{t("partner.bk.status")}</TableHead>
@@ -140,13 +195,14 @@ function PartnerPage() {
             <TableBody>
               {clubBookings.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-sm text-muted-foreground">{t("partner.bk.empty")}</TableCell>
+                  <TableCell colSpan={7} className="text-sm text-muted-foreground">{t("partner.bk.empty")}</TableCell>
                 </TableRow>
               )}
               {clubBookings.map((b) => (
                 <TableRow key={b.id}>
                   <TableCell>{allZones.find((z) => z.id === b.zoneId)?.name ?? "—"}</TableCell>
                   <TableCell>#{b.seatNo}</TableCell>
+                  <TableCell className="font-mono text-accent">{b.code}</TableCell>
                   <TableCell>{b.date} · {b.startTime}</TableCell>
                   <TableCell>{b.hours}h</TableCell>
                   <TableCell>
