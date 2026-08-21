@@ -215,24 +215,10 @@ function PartnerPage() {
           </Table>
         </TabsContent>
 
-        <TabsContent value="zones" className="space-y-3">
-          {zones.map((z) => (
-            <div key={z.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card/60 p-4">
-              <div className="min-w-40">
-                <p className="font-semibold">{z.name}</p>
-                <p className="text-xs text-muted-foreground">{z.specs}</p>
-              </div>
-              <Badge variant="secondary">{z.type}</Badge>
-              <span className="text-sm text-muted-foreground">{z.seats} {t("partner.seats")}</span>
-              <div className="ml-auto flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground">{t("partner.perHour")}</Label>
-                <Input value={z.pricePerHour} className="w-28" type="number" onChange={(e) => updateZone(z.id, { pricePerHour: Number(e.target.value) })} />
-                <Input value={z.seats} className="w-20" type="number" aria-label={t("partner.seats")} onChange={(e) => updateZone(z.id, { seats: Number(e.target.value) })} />
-                <Button size="sm" variant="secondary" onClick={() => toast.success(`${z.name} ${t("partner.priceUpdated")}`)}>{t("partner.save")}</Button>
-              </div>
-            </div>
-          ))}
+        <TabsContent value="zones">
+          <ClubBuilder clubId={clubId} />
         </TabsContent>
+
 
         <TabsContent value="club" className="grid max-w-xl gap-4">
           <Field label={t("partner.clubName")} value={club.name} onChange={(v) => updateClub(club.id, { name: v })} />
