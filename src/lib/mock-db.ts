@@ -29,6 +29,8 @@ export interface PcZone {
   specs: string;
 }
 
+export type ClubStatus = "pending" | "active" | "trial" | "suspended";
+
 export interface Club {
   id: string;
   name: string;
@@ -49,6 +51,9 @@ export interface Club {
   saasFeeKzt: number;
   terminals: number;
   occupancy: number;
+  status: ClubStatus;
+  appliedAt?: string;
+  photos: string[];
 }
 
 export type BookingStatus = "upcoming" | "active" | "completed" | "cancelled";
@@ -178,6 +183,8 @@ export const clubs: Club[] = [
     saasFeeKzt: 89000,
     terminals: 60,
     occupancy: 78,
+    status: "active",
+    photos: [],
   },
   {
     id: "c2",
@@ -198,6 +205,8 @@ export const clubs: Club[] = [
     saasFeeKzt: 49000,
     terminals: 32,
     occupancy: 54,
+    status: "trial",
+    photos: [],
   },
   {
     id: "c3",
@@ -218,6 +227,8 @@ export const clubs: Club[] = [
     saasFeeKzt: 29000,
     terminals: 24,
     occupancy: 41,
+    status: "active",
+    photos: [],
   },
   {
     id: "c4",
@@ -238,7 +249,62 @@ export const clubs: Club[] = [
     saasFeeKzt: 149000,
     terminals: 90,
     occupancy: 86,
+    status: "active",
+    photos: [],
   },
+  {
+    id: "c5",
+    name: "GG Station Karaganda",
+    city: "Karaganda",
+    address: "пр. Бухар Жырау 41, Karaganda",
+    rating: 0,
+    reviews: 0,
+    openFrom: "10:00",
+    openTo: "02:00",
+    fromPrice: 450,
+    cover: "linear-gradient(135deg, oklch(0.5 0.2 30), oklch(0.45 0.2 300))",
+    mapX: 44,
+    mapY: 50,
+    ownerId: "u2",
+    plan: "Trial",
+    trialEndsAt: "2026-09-05",
+    saasFeeKzt: 29000,
+    terminals: 28,
+    occupancy: 0,
+    status: "pending",
+    appliedAt: "2026-08-18",
+    photos: [],
+  },
+  {
+    id: "c6",
+    name: "Nomad Cyber Almaty",
+    city: "Almaty",
+    address: "ул. Абая 150, Almaty",
+    rating: 0,
+    reviews: 0,
+    openFrom: "24/7",
+    openTo: "24/7",
+    fromPrice: 900,
+    cover: "linear-gradient(135deg, oklch(0.5 0.22 260), oklch(0.5 0.18 180))",
+    mapX: 66,
+    mapY: 80,
+    ownerId: "u2",
+    plan: "Trial",
+    trialEndsAt: "2026-09-12",
+    saasFeeKzt: 49000,
+    terminals: 45,
+    occupancy: 0,
+    status: "pending",
+    appliedAt: "2026-08-20",
+    photos: [],
+  },
+];
+
+/** Demo credentials for the mocked multi-role login. */
+export const demoAccounts = [
+  { email: "dastan@hotshot.kz", password: "player", role: "player" as Role },
+  { email: "owner@cyberdome.kz", password: "owner", role: "owner" as Role },
+  { email: "admin@hotshot.play", password: "admin", role: "admin" as Role },
 ];
 
 export const pcZones: PcZone[] = [
