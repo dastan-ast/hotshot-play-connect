@@ -321,7 +321,7 @@ const SEAT_STATUSES: SeatStatus[] = ["ok", "repair", "off"];
 function ClubBuilder({ clubId }: { clubId: string }) {
   const { zones: allZones, seats: allSeats, updateZone, addZone, removeZone, addSeats, updateSeat, removeSeat } = useStore();
   const { t } = useI18n();
-  const zones = allZones.filter((z) => z.clubId === club.id);
+  const zones = allZones.filter((z) => z.clubId === clubId);
   const [openZone, setOpenZone] = useState<string | null>(zones[0]?.id ?? null);
   const [draft, setDraft] = useState({ name: "", type: "Standard" as ZoneType, pricePerHour: 900, specs: "RTX 4060 · i5 · 165Hz", seats: 5 });
 
