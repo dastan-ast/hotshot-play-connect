@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { extraEn, extraKk, extraRu } from "./i18n-extra";
 
 export const LANGS = [
   { code: "ru", label: "Рус" },
@@ -658,7 +659,11 @@ const kk: Dict = {
   "pay.with": "арқылы",
 };
 
-const DICTS: Record<Lang, Dict> = { en, ru, kk };
+const DICTS: Record<Lang, Dict> = {
+  en: { ...en, ...extraEn },
+  ru: { ...ru, ...extraRu },
+  kk: { ...kk, ...extraKk },
+};
 
 interface I18nValue {
   lang: Lang;
@@ -681,7 +686,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem("hsp-lang", l);
   }, []);
 
-  const t = useCallback((key: string) => DICTS[lang][key] ?? en[key] ?? key, [lang]);
+  const t = useCallback((key: string) => DICTS[lang][key] ?? DICTS.en[key] ?? key, [lang]);
 
   const value = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
   return <I18nCtx.Provider value={value}>{children}</I18nCtx.Provider>;
