@@ -40,6 +40,7 @@ export function PaymentDialog({
 }) {
   const [method, setMethod] = useState<PaymentMethod>("Kaspi QR");
   const [processing, setProcessing] = useState(false);
+  const { t } = useI18n();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
