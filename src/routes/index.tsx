@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { pcZones, kzt } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { clubs } = useStore();
+  const { t } = useI18n();
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState(clubs[0]!.id);
 
@@ -40,26 +42,25 @@ function Index() {
       <section className="neon-panel relative overflow-hidden p-6 sm:p-10">
         <div className="grid-bg pointer-events-none absolute inset-0 opacity-40" />
         <div className="relative max-w-2xl">
-          <Badge className="mb-4 bg-accent/15 text-accent">Astana · 4 partner clubs live</Badge>
+          <Badge className="mb-4 bg-accent/15 text-accent">{t("home.badge")}</Badge>
           <h1 className="text-3xl font-extrabold leading-tight sm:text-5xl">
-            Every computer club in one <span className="neon-text">gaming pass</span>
+            {t("home.title1")} <span className="neon-text">{t("home.title2")}</span>
           </h1>
           <p className="mt-4 text-muted-foreground">
-            Compare clubs on the map, book your exact seat, and start the session with a QR code. Gaming hours work across all
-            HotShot Play partners.
+            {t("home.subtitle")}
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild size="lg">
-              <Link to="/passes">Get a HotShot Pass</Link>
+              <Link to="/passes">{t("home.cta.pass")}</Link>
             </Button>
             <Button asChild size="lg" variant="secondary">
-              <Link to="/profile">My QR check-in</Link>
+              <Link to="/profile">{t("home.cta.qr")}</Link>
             </Button>
           </div>
           <div className="mt-8 flex flex-wrap gap-6 text-sm text-muted-foreground">
-            <span className="flex items-center gap-2"><Gamepad2 className="size-4 text-primary" /> 206 terminals</span>
-            <span className="flex items-center gap-2"><Zap className="size-4 text-accent" /> Instant booking</span>
-            <span className="flex items-center gap-2"><Users className="size-4 text-primary" /> 1 375 gamers</span>
+            <span className="flex items-center gap-2"><Gamepad2 className="size-4 text-primary" /> {t("home.stat.terminals")}</span>
+            <span className="flex items-center gap-2"><Zap className="size-4 text-accent" /> {t("home.stat.instant")}</span>
+            <span className="flex items-center gap-2"><Users className="size-4 text-primary" /> {t("home.stat.gamers")}</span>
           </div>
         </div>
       </section>
@@ -69,7 +70,7 @@ function Index() {
           <div className="grid-bg absolute inset-0 opacity-60" />
           <div className="absolute inset-0 bg-[radial-gradient(60%_60%_at_40%_40%,oklch(0.65_0.24_300/0.14),transparent_70%)]" />
           <div className="absolute left-4 top-4 z-10 rounded-lg border border-border bg-background/80 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur">
-            Map view · Astana (2GIS mock)
+            {t("home.mapview")}
           </div>
           {clubs.map((c) => (
             <button
@@ -106,7 +107,7 @@ function Index() {
             </div>
             <Button asChild className="mt-3 w-full" size="sm">
               <Link to="/clubs/$clubId" params={{ clubId: active.id }}>
-                Book a seat
+                {t("home.book")}
               </Link>
             </Button>
           </div>
@@ -115,7 +116,7 @@ function Index() {
         <section className="space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search clubs or districts" className="pl-9" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("home.search")} className="pl-9" />
           </div>
           <div className="space-y-3">
             {filtered.map((c) => (
@@ -139,8 +140,8 @@ function Index() {
                     <span className="flex items-center gap-1 rounded-md bg-secondary px-2 py-1">
                       <Clock className="size-3" /> {c.openFrom === "24/7" ? "24/7" : `${c.openFrom}–${c.openTo}`}
                     </span>
-                    <span className="rounded-md bg-secondary px-2 py-1">from {kzt(c.fromPrice)}/h</span>
-                    <span className="rounded-md bg-primary/15 px-2 py-1 text-primary">{c.occupancy}% busy</span>
+                    <span className="rounded-md bg-secondary px-2 py-1">{t("home.from")} {kzt(c.fromPrice)}/h</span>
+                    <span className="rounded-md bg-primary/15 px-2 py-1 text-primary">{c.occupancy}% {t("home.busy")}</span>
                   </div>
                 </div>
               </Link>

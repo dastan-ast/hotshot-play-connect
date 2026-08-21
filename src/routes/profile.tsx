@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { kzt, pcZones } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/profile")({
 
 function ProfilePage() {
   const { user, clubs, bookings, payments, qrSessions, passHours, balance, startSession, stopSession } = useStore();
+  const { t } = useI18n();
   const openSession = qrSessions.find((s) => s.status === "open");
   const [code, setCode] = useState(openSession?.code ?? "HSP-••••-KZ");
 
@@ -38,21 +40,21 @@ function ProfilePage() {
           <p className="text-sm text-muted-foreground">{user.email} · {user.city}</p>
         </div>
         <div className="ml-auto grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Stat icon={Ticket} label="Pass hours" value={`${passHours}h`} />
-          <Stat icon={Wallet} label="Wallet" value={kzt(balance)} />
-          <Stat icon={History} label="Sessions" value={String(qrSessions.length)} />
+          <Stat icon={Ticket} label={t("profile.passHours")} value={`${passHours}h`} />
+          <Stat icon={Wallet} label={t("profile.wallet")} value={kzt(balance)} />
+          <Stat icon={History} label={t("profile.sessions")} value={String(qrSessions.length)} />
         </div>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
         <section className="neon-panel p-5 text-center">
-          <h2 className="font-bold">Digital pass · QR check-in</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Scan at the club entrance to start or stop your session</p>
+          <h2 className="font-bold">{t("profile.qrTitle")}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t("profile.qrHint")}</p>
           <div className="mx-auto mt-5 grid size-48 place-items-center rounded-2xl border border-primary/40 bg-secondary/50 neon-glow">
             <QrCode className="size-32 text-primary" />
           </div>
           <p className="mt-3 font-mono text-sm tracking-widest text-accent">{code}</p>
-          <Badge variant="secondary" className="mt-2">{openSession ? "Session running" : "Idle"}</Badge>
+          <Badge variant="secondary" className="mt-2">{openSession ? t("profile.running") : t("profile.idle")}</Badge>
           <div className="mt-5 flex gap-2">
             <Button
               className="flex-1"
@@ -60,10 +62,10 @@ function ProfilePage() {
               onClick={() => {
                 const s = startSession(clubs[0]!.id, bookings.find((b) => b.status === "upcoming")?.id);
                 setCode(s.code);
-                toast.success("Session started — clock is running");
+                toast.success(t("profile.started"));
               }}
             >
-              <Play className="size-4" /> Start
+              <Play className="size-4" /> {t("profile.start")}
             </Button>
             <Button
               variant="secondary"
@@ -71,10 +73,10 @@ function ProfilePage() {
               disabled={!openSession}
               onClick={() => {
                 stopSession(openSession!.id);
-                toast.success("Session stopped — hours deducted");
+                toast.success(t("profile.stopped"));
               }}
             >
-              <Square className="size-4" /> Stop
+              <Square className="size-4" /> {t("profile.stop")}
             </Button>
           </div>
         </section>
@@ -82,10 +84,10 @@ function ProfilePage() {
         <section className="neon-panel p-5">
           <Tabs defaultValue="bookings">
             <TabsList className="mb-4">
-              <TabsTrigger value="bookings">Bookings</TabsTrigger>
-              <TabsTrigger value="payments">Payments</TabsTrigger>
-              <TabsTrigger value="sessions">Sessions</TabsTrigger>
-              <TabsTrigger value="reviews">Reviews</TabsTrigger>
+              <TabsTrigger value="bookings">{t("profile.tab.bookings")}</TabsTrigger>
+              <TabsTrigger value="payments">{t("profile.tab.payments")}</TabsTrigger>
+              <TabsTrigger value="sessions">{t("profile.tab.sessions")}</TabsTrigger>
+              <TabsTrigger value="reviews">{t("profile.tab.reviews")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="bookings" className="space-y-3">
@@ -96,9 +98,9 @@ function ProfilePage() {
                     <Badge variant={b.status === "upcoming" ? "default" : "secondary"} className="capitalize">{b.status}</Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {pcZones.find((z) => z.id === b.zoneId)?.name} · seat #{b.seatNo} · {b.date} {b.startTime} · {b.hours}h
+                    {pcZones.find((z) => z.id === b.zoneId)?.name} · {t("profile.seat")} #{b.seatNo} · {b.date} {b.startTime} · {b.hours}h
                   </p>
-                  <p className="mt-1 text-sm">{b.totalKzt ? kzt(b.totalKzt) : "Paid with HotShot Pass"} · {String(b.paidWith)}</p>
+                  <p className="mt-1 text-sm">{b.totalKzt ? kzt(b.totalKzt) : t("profile.paidWithPass")} · {String(b.paidWith)}</p>
                 </div>
               ))}
             </TabsContent>

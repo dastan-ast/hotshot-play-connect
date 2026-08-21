@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { PaymentDialog } from "@/components/PaymentDialog";
 import { passPlans, kzt, type PaymentMethod } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/passes")({
   head: () => ({
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/passes")({
 
 function PassesPage() {
   const { buyPass, topUp, balance, subscriptions } = useStore();
+  const { t } = useI18n();
   const [pending, setPending] = useState<(typeof passPlans)[number] | null>(null);
   const [topUpOpen, setTopUpOpen] = useState(false);
   const [amount, setAmount] = useState(5000);
@@ -30,13 +32,12 @@ function PassesPage() {
   return (
     <div className="space-y-10">
       <div className="max-w-2xl">
-        <Badge className="mb-3 bg-primary/15 text-primary">Universal access</Badge>
+        <Badge className="mb-3 bg-primary/15 text-primary">{t("passes.badge")}</Badge>
         <h1 className="text-3xl font-extrabold sm:text-4xl">
-          One pass. <span className="neon-text">Every club.</span>
+          {t("passes.title1")} <span className="neon-text">{t("passes.title2")}</span>
         </h1>
         <p className="mt-3 text-muted-foreground">
-          HotShot Play Passes are gaming hours you can spend at any partner club. Buy once, play anywhere — check in with your
-          dynamic QR code and the hours are deducted automatically.
+          {t("passes.subtitle")}
         </p>
       </div>
 
@@ -54,7 +55,7 @@ function PassesPage() {
             </div>
             <h3 className="mt-4 text-lg font-bold">{p.name}</h3>
             <p className="mt-1 text-3xl font-extrabold neon-text">{kzt(p.priceKzt)}</p>
-            <p className="text-xs text-muted-foreground">{p.hours} gaming hours · {Math.round(p.priceKzt / p.hours)} ₸/h</p>
+            <p className="text-xs text-muted-foreground">{p.hours} {t("passes.hours")} · {Math.round(p.priceKzt / p.hours)} ₸/h</p>
             <ul className="mt-4 flex-1 space-y-2 text-sm text-muted-foreground">
               {p.perks.map((perk) => (
                 <li key={perk} className="flex items-start gap-2">
@@ -63,7 +64,7 @@ function PassesPage() {
               ))}
             </ul>
             <Button className="mt-5" onClick={() => setPending(p)}>
-              Buy pass
+              {t("passes.buy")}
             </Button>
           </div>
         ))}
@@ -75,8 +76,8 @@ function PassesPage() {
             <Wallet className="size-5 text-accent" />
           </span>
           <div>
-            <p className="font-semibold">HotShot Wallet</p>
-            <p className="text-sm text-muted-foreground">Balance {kzt(balance)} · use it for hourly bookings</p>
+            <p className="font-semibold">{t("passes.wallet")}</p>
+            <p className="text-sm text-muted-foreground">{t("passes.balance")} {kzt(balance)} · {t("passes.walletHint")}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -87,14 +88,14 @@ function PassesPage() {
             className="w-32"
           />
           <Button variant="secondary" onClick={() => setTopUpOpen(true)}>
-            Top up
+            {t("passes.topup")}
           </Button>
         </div>
       </div>
 
       {subscriptions.length > 0 && (
         <div>
-          <h2 className="mb-3 text-lg font-bold">Your subscriptions</h2>
+          <h2 className="mb-3 text-lg font-bold">{t("passes.yourSubs")}</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {subscriptions.map((s) => (
               <div key={s.id} className="neon-panel p-4">
@@ -103,7 +104,7 @@ function PassesPage() {
                   <Badge variant="secondary" className="capitalize">{s.status}</Badge>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {s.hoursLeft}h left of {s.hours}h · valid until {s.validUntil}
+                  {s.hoursLeft}h {t("passes.left")} {s.hours}h · {t("passes.validUntil")} {s.validUntil}
                 </p>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
                   <div
@@ -131,7 +132,7 @@ function PassesPage() {
             priceKzt: pending.priceKzt,
             method,
           });
-          toast.success(`${pending.name} activated — ${pending.hours}h added`);
+          toast.success(`${pending.name} — ${t("passes.activated")} (+${pending.hours}h)`);
           setPending(null);
         }}
       />
@@ -139,11 +140,11 @@ function PassesPage() {
       <PaymentDialog
         open={topUpOpen}
         onOpenChange={setTopUpOpen}
-        title="Wallet top-up"
+        title={t("passes.topupTitle")}
         amount={amount}
         onConfirm={(method) => {
           topUp(amount, method);
-          toast.success(`Wallet topped up with ${kzt(amount)}`);
+          toast.success(`${t("passes.toppedUp")} ${kzt(amount)}`);
           setTopUpOpen(false);
         }}
       />
