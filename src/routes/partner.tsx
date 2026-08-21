@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { TrendingUp, Activity, CalendarCheck, Cpu, AlertTriangle, Check, UserCheck } from "lucide-react";
+import { TrendingUp, Activity, CalendarCheck, Cpu, AlertTriangle, Check, UserCheck, Plus, Trash2, MonitorSmartphone } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,10 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PaymentDialog } from "@/components/PaymentDialog";
-import { revenueSeries, saasPlans, kzt, users } from "@/lib/mock-db";
+import { revenueSeries, saasPlans, kzt, users, ZONE_TYPES, type SeatStatus, type ZoneType } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 import { RequireRole } from "@/components/RequireRole";
+import { useAuth } from "@/lib/auth";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const Route = createFileRoute("/partner")({
@@ -39,10 +40,13 @@ const daysLeft = (iso: string) => {
 function PartnerPage() {
   const { clubs, zones: allZones, bookings, payments, updateClub, updateZone, paySaas, checkInBooking } = useStore();
   const { t } = useI18n();
-  const [clubId, setClubId] = useState(clubs[0]!.id);
-  const club = clubs.find((c) => c.id === clubId)!;
-  const zones = allZones.filter((z) => z.clubId === clubId);
-  const clubBookings = bookings.filter((b) => b.clubId === clubId);
+  const { user, role } = useAuth();
+  const owned = clubs.filter((c) => c.ownerId === user?.id);
+  const myClubs = role === "admin" || owned.length === 0 ? clubs : owned;
+  const [clubId, setClubId] = useState(myClubs[0]!.id);
+  const club = myClubs.find((c) => c.id === clubId) ?? myClubs[0]!;
+  const zones = allZones.filter((z) => z.clubId === club.id);
+  const clubBookings = bookings.filter((b) => b.clubId === club.id);
   const today = new Date().toISOString().slice(0, 10);
   const todayBookings = clubBookings.filter((b) => b.date === today && b.status !== "cancelled");
   const guest = (userId: string) => users.find((u) => u.id === userId);
@@ -58,7 +62,7 @@ function PartnerPage() {
           <p className="text-sm text-muted-foreground">{t("partner.subtitle")}</p>
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
-          {clubs.map((c) => (
+          {myClubs.map((c) => (
             <button
               key={c.id}
               onClick={() => setClubId(c.id)}
@@ -150,8 +154,8 @@ function PartnerPage() {
               )}
               {todayBookings.map((b) => (
                 <TableRow key={b.id}>
-                  <TableCell className="font-medium">{guest(b.userId)?.name ?? "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{guest(b.userId)?.phone ?? "—"}</TableCell>
+                  <TableCell className="font-medium">{(b.userId ? guest(b.userId)?.name : b.guestName) ?? b.guestName ?? "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">{(b.userId ? guest(b.userId)?.phone : b.guestPhone) ?? b.guestPhone ?? "—"}</TableCell>
                   <TableCell className="font-mono font-bold tracking-widest text-accent">{b.code}</TableCell>
                   <TableCell>{allZones.find((z) => z.id === b.zoneId)?.name ?? "—"} · #{b.seatNo}</TableCell>
                   <TableCell>{b.startTime} · {b.hours}h</TableCell>
@@ -215,24 +219,10 @@ function PartnerPage() {
           </Table>
         </TabsContent>
 
-        <TabsContent value="zones" className="space-y-3">
-          {zones.map((z) => (
-            <div key={z.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card/60 p-4">
-              <div className="min-w-40">
-                <p className="font-semibold">{z.name}</p>
-                <p className="text-xs text-muted-foreground">{z.specs}</p>
-              </div>
-              <Badge variant="secondary">{z.type}</Badge>
-              <span className="text-sm text-muted-foreground">{z.seats} {t("partner.seats")}</span>
-              <div className="ml-auto flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground">{t("partner.perHour")}</Label>
-                <Input value={z.pricePerHour} className="w-28" type="number" onChange={(e) => updateZone(z.id, { pricePerHour: Number(e.target.value) })} />
-                <Input value={z.seats} className="w-20" type="number" aria-label={t("partner.seats")} onChange={(e) => updateZone(z.id, { seats: Number(e.target.value) })} />
-                <Button size="sm" variant="secondary" onClick={() => toast.success(`${z.name} ${t("partner.priceUpdated")}`)}>{t("partner.save")}</Button>
-              </div>
-            </div>
-          ))}
+        <TabsContent value="zones">
+          <ClubBuilder clubId={club.id} />
         </TabsContent>
+
 
         <TabsContent value="club" className="grid max-w-xl gap-4">
           <Field label={t("partner.clubName")} value={club.name} onChange={(v) => updateClub(club.id, { name: v })} />
@@ -321,6 +311,120 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
     <div className="grid gap-1.5">
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <Input value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+
+const SEAT_STATUSES: SeatStatus[] = ["ok", "repair", "off"];
+
+function ClubBuilder({ clubId }: { clubId: string }) {
+  const { zones: allZones, seats: allSeats, updateZone, addZone, removeZone, addSeats, updateSeat, removeSeat } = useStore();
+  const { t } = useI18n();
+  const zones = allZones.filter((z) => z.clubId === clubId);
+  const [openZone, setOpenZone] = useState<string | null>(zones[0]?.id ?? null);
+  const [draft, setDraft] = useState({ name: "", type: "Standard" as ZoneType, pricePerHour: 900, specs: "RTX 4060 · i5 · 165Hz", seats: 5 });
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-border bg-card/60 p-4">
+        <p className="mb-3 flex items-center gap-2 font-semibold"><Plus className="size-4 text-primary" />{t("owner.addZone")}</p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-1.5">
+            <Label className="text-xs text-muted-foreground">{t("owner.zoneName")}</Label>
+            <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="VIP Room" />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs text-muted-foreground">{t("owner.zoneType")}</Label>
+            <div className="flex flex-wrap gap-1">
+              {ZONE_TYPES.map((zt) => (
+                <button
+                  key={zt}
+                  onClick={() => setDraft({ ...draft, type: zt })}
+                  className={`rounded-lg border border-border px-2 py-1.5 text-xs ${draft.type === zt ? "border-primary bg-primary text-primary-foreground" : "bg-card/60 text-muted-foreground"}`}
+                >
+                  {zt}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs text-muted-foreground">{t("owner.zonePrice")}</Label>
+            <Input type="number" value={draft.pricePerHour} onChange={(e) => setDraft({ ...draft, pricePerHour: Number(e.target.value) })} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs text-muted-foreground">{t("owner.zoneSeats")}</Label>
+            <Input type="number" value={draft.seats} onChange={(e) => setDraft({ ...draft, seats: Number(e.target.value) })} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs text-muted-foreground">{t("owner.zoneSpecs")}</Label>
+            <Input value={draft.specs} onChange={(e) => setDraft({ ...draft, specs: e.target.value })} />
+          </div>
+        </div>
+        <Button
+          className="mt-3"
+          disabled={!draft.name.trim()}
+          onClick={() => {
+            addZone(clubId, { ...draft, name: draft.name.trim(), seats: Math.max(0, draft.seats) });
+            toast.success(`${draft.name} — ${t("owner.zoneAdded")}`);
+            setDraft({ ...draft, name: "" });
+          }}
+        >
+          <Plus className="size-4" /> {t("owner.create")}
+        </Button>
+      </div>
+
+      {zones.length === 0 && <p className="text-sm text-muted-foreground">{t("owner.noZones")}</p>}
+
+      {zones.map((z) => {
+        const seats = allSeats.filter((s) => s.zoneId === z.id);
+        const open = openZone === z.id;
+        return (
+          <div key={z.id} className="rounded-xl border border-border bg-card/60 p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <button className="min-w-40 text-left" onClick={() => setOpenZone(open ? null : z.id)}>
+                <p className="font-semibold">{z.name}</p>
+                <p className="text-xs text-muted-foreground">{seats.length} {t("partner.seats")} · {z.specs}</p>
+              </button>
+              <Badge variant="secondary">{z.type}</Badge>
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                <Label className="text-xs text-muted-foreground">{t("partner.perHour")}</Label>
+                <Input value={z.pricePerHour} className="w-28" type="number" onChange={(e) => updateZone(z.id, { pricePerHour: Number(e.target.value) })} />
+                <Input value={z.specs} className="w-56" aria-label={t("owner.zoneSpecs")} onChange={(e) => updateZone(z.id, { specs: e.target.value })} />
+                <Button size="sm" variant="secondary" onClick={() => addSeats(z.id, 1)}><Plus className="size-4" /> {t("owner.addPc")}</Button>
+                <Button size="sm" variant="secondary" onClick={() => addSeats(z.id, 5)}>{t("owner.addFive")}</Button>
+                <Button size="sm" variant="ghost" onClick={() => { removeZone(z.id); toast(t("owner.zoneRemoved")); }}>
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            </div>
+
+            {open && (
+              <div className="mt-4 grid gap-2">
+                {seats.map((s) => (
+                  <div key={s.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-2">
+                    <MonitorSmartphone className="size-4 text-accent" />
+                    <Input value={s.label} className="w-32" onChange={(e) => updateSeat(s.id, { label: e.target.value })} />
+                    <Input value={s.specs} className="w-full max-w-sm" onChange={(e) => updateSeat(s.id, { specs: e.target.value })} />
+                    <div className="ml-auto flex items-center gap-1">
+                      {SEAT_STATUSES.map((st) => (
+                        <button
+                          key={st}
+                          onClick={() => updateSeat(s.id, { status: st })}
+                          className={`rounded-lg border border-border px-2 py-1 text-xs ${s.status === st ? "border-primary bg-primary text-primary-foreground" : "bg-card/60 text-muted-foreground"}`}
+                        >
+                          {t(`owner.st.${st}`)}
+                        </button>
+                      ))}
+                      <Button size="sm" variant="ghost" onClick={() => removeSeat(s.id)}><Trash2 className="size-4" /></Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

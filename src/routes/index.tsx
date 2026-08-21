@@ -4,7 +4,7 @@ import { MapPin, Star, Clock, Search, Gamepad2, Zap, Users } from "lucide-react"
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { kzt } from "@/lib/mock-db";
+import { kzt, ZONE_TYPES, type ZoneType } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
@@ -26,15 +26,26 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { clubs, zones: pcZones } = useStore();
+  const { clubs, zones: pcZones, findBookingByCode } = useStore();
   const { t } = useI18n();
   const [q, setQ] = useState("");
+  const [zoneType, setZoneType] = useState<ZoneType | "any">("any");
+  const [maxPrice, setMaxPrice] = useState(4000);
+  const [code, setCode] = useState("");
+  const [found, setFound] = useState<string | null>(null);
   const [selected, setSelected] = useState(clubs[0]!.id);
 
   const listed = useMemo(() => clubs.filter((c) => c.status === "active" || c.status === "trial"), [clubs]);
   const filtered = useMemo(
-    () => listed.filter((c) => (c.name + c.address).toLowerCase().includes(q.toLowerCase())),
-    [listed, q],
+    () =>
+      listed.filter((c) => {
+        if (!(c.name + c.address).toLowerCase().includes(q.toLowerCase())) return false;
+        const zs = pcZones.filter((z) => z.clubId === c.id);
+        if (zoneType !== "any" && !zs.some((z) => z.type === zoneType)) return false;
+        const cheapest = zs.length ? Math.min(...zs.map((z) => z.pricePerHour)) : c.fromPrice;
+        return cheapest <= maxPrice;
+      }),
+    [listed, q, pcZones, zoneType, maxPrice],
   );
   const active = clubs.find((c) => c.id === selected)!;
 
@@ -63,6 +74,65 @@ function Index() {
             <span className="flex items-center gap-2"><Zap className="size-4 text-accent" /> {t("home.stat.instant")}</span>
             <span className="flex items-center gap-2"><Users className="size-4 text-primary" /> {t("home.stat.gamers")}</span>
           </div>
+        </div>
+      </section>
+
+      <section className="neon-panel grid gap-4 p-5 lg:grid-cols-[1.4fr_1fr]">
+        <div className="space-y-3">
+          <div>
+            <h2 className="font-bold">{t("quick.title")}</h2>
+            <p className="text-xs text-muted-foreground">{t("quick.hint")}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setZoneType("any")}
+              className={cn("rounded-lg border border-border px-3 py-1.5 text-xs", zoneType === "any" ? "border-primary bg-primary text-primary-foreground" : "bg-card/60 text-muted-foreground")}
+            >
+              {t("quick.any")}
+            </button>
+            {ZONE_TYPES.map((zt) => (
+              <button
+                key={zt}
+                onClick={() => setZoneType(zt)}
+                className={cn("rounded-lg border border-border px-3 py-1.5 text-xs", zoneType === zt ? "border-primary bg-primary text-primary-foreground" : "bg-card/60 text-muted-foreground")}
+              >
+                {zt}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span>{t("quick.maxPrice")}</span>
+            <input
+              type="range"
+              min={500}
+              max={4000}
+              step={100}
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(Number(e.target.value))}
+              className="h-1 flex-1 accent-[var(--color-primary)]"
+              aria-label={t("quick.maxPrice")}
+            />
+            <span className="font-semibold text-foreground">{kzt(maxPrice)}/h</span>
+          </div>
+          <p className="text-xs text-accent">{filtered.length} {t("quick.results")}</p>
+        </div>
+
+        <div className="space-y-2 rounded-xl border border-border bg-card/60 p-4">
+          <p className="text-sm font-semibold">{t("code.title")}</p>
+          <p className="text-xs text-muted-foreground">{t("code.hint")}</p>
+          <div className="flex gap-2">
+            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="HP-1234" className="font-mono uppercase" />
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const b = findBookingByCode(code);
+                setFound(b ? `${clubs.find((c) => c.id === b.clubId)?.name} · ${b.startTime} · ${b.hours}h · #${b.seatNo}` : t("code.notfound"));
+              }}
+            >
+              {t("code.find")}
+            </Button>
+          </div>
+          {found && <p className="text-xs text-muted-foreground">{found}</p>}
         </div>
       </section>
 
