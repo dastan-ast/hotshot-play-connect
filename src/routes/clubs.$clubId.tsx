@@ -193,7 +193,7 @@ function ClubPage() {
             disabled={!seat || passHours < hours}
             onClick={() => confirm("HotShot Pass" as PaymentMethod)}
           >
-            Use HotShot Pass ({passHours}h left)
+            {t("club.usePass")} ({passHours}h)
           </Button>
         </aside>
       </div>
