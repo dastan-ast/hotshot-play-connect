@@ -13,6 +13,7 @@ import { revenueSeries, saasPlans, kzt, users, ZONE_TYPES, type SeatStatus, type
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 import { RequireRole } from "@/components/RequireRole";
+import { useAuth } from "@/lib/auth";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const Route = createFileRoute("/partner")({
@@ -39,10 +40,13 @@ const daysLeft = (iso: string) => {
 function PartnerPage() {
   const { clubs, zones: allZones, bookings, payments, updateClub, updateZone, paySaas, checkInBooking } = useStore();
   const { t } = useI18n();
-  const [clubId, setClubId] = useState(clubs[0]!.id);
-  const club = clubs.find((c) => c.id === clubId)!;
-  const zones = allZones.filter((z) => z.clubId === clubId);
-  const clubBookings = bookings.filter((b) => b.clubId === clubId);
+  const { user, role } = useAuth();
+  const owned = clubs.filter((c) => c.ownerId === user?.id);
+  const myClubs = role === "admin" || owned.length === 0 ? clubs : owned;
+  const [clubId, setClubId] = useState(myClubs[0]!.id);
+  const club = myClubs.find((c) => c.id === clubId) ?? myClubs[0]!;
+  const zones = allZones.filter((z) => z.clubId === club.id);
+  const clubBookings = bookings.filter((b) => b.clubId === club.id);
   const today = new Date().toISOString().slice(0, 10);
   const todayBookings = clubBookings.filter((b) => b.date === today && b.status !== "cancelled");
   const guest = (userId: string) => users.find((u) => u.id === userId);
@@ -58,7 +62,7 @@ function PartnerPage() {
           <p className="text-sm text-muted-foreground">{t("partner.subtitle")}</p>
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
-          {clubs.map((c) => (
+          {myClubs.map((c) => (
             <button
               key={c.id}
               onClick={() => setClubId(c.id)}
@@ -216,7 +220,7 @@ function PartnerPage() {
         </TabsContent>
 
         <TabsContent value="zones">
-          <ClubBuilder clubId={clubId} />
+          <ClubBuilder clubId={club.id} />
         </TabsContent>
 
 
@@ -317,7 +321,7 @@ const SEAT_STATUSES: SeatStatus[] = ["ok", "repair", "off"];
 function ClubBuilder({ clubId }: { clubId: string }) {
   const { zones: allZones, seats: allSeats, updateZone, addZone, removeZone, addSeats, updateSeat, removeSeat } = useStore();
   const { t } = useI18n();
-  const zones = allZones.filter((z) => z.clubId === clubId);
+  const zones = allZones.filter((z) => z.clubId === club.id);
   const [openZone, setOpenZone] = useState<string | null>(zones[0]?.id ?? null);
   const [draft, setDraft] = useState({ name: "", type: "Standard" as ZoneType, pricePerHour: 900, specs: "RTX 4060 · i5 · 165Hz", seats: 5 });
 
