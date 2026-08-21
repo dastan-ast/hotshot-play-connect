@@ -60,6 +60,8 @@ export type BookingStatus = "upcoming" | "active" | "completed" | "cancelled";
 
 export interface Booking {
   id: string;
+  /** short human-readable check-in code, e.g. HP-4821 */
+  code: string;
   userId: string;
   clubId: string;
   zoneId: string;
@@ -323,6 +325,7 @@ export const pcZones: PcZone[] = [
 export const bookings: Booking[] = [
   {
     id: "b1",
+    code: "HP-4821",
     userId: "u1",
     clubId: "c1",
     zoneId: "z2",
@@ -336,6 +339,7 @@ export const bookings: Booking[] = [
   },
   {
     id: "b2",
+    code: "HP-1097",
     userId: "u1",
     clubId: "c3",
     zoneId: "z6",
@@ -348,6 +352,9 @@ export const bookings: Booking[] = [
     status: "completed",
   },
 ];
+
+/** Generates a short booking code such as "HP-8412". */
+export const makeBookingCode = () => `HP-${Math.floor(1000 + Math.random() * 8999)}`;
 
 export const subscriptions: Subscription[] = [
   {
