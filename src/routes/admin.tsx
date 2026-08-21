@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { kzt, users } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -19,34 +20,35 @@ export const Route = createFileRoute("/admin")({
 
 function AdminPage() {
   const { clubs, payments, subscriptions } = useStore();
+  const { t } = useI18n();
   const gmv = payments.reduce((s, p) => s + p.amountKzt, 0);
   const saas = payments.filter((p) => p.kind === "saas").reduce((s, p) => s + p.amountKzt, 0);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-extrabold">Super admin</h1>
-        <p className="text-sm text-muted-foreground">Platform overview · Kazakhstan · Astana region</p>
+        <h1 className="text-2xl font-extrabold">{t("admin.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("admin.subtitle")}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={Building2} label="Partner clubs" value={String(clubs.length)} sub={`${clubs.filter((c) => c.plan === "Trial").length} on trial`} />
-        <Kpi icon={Users} label="Registered users" value="1 375" sub="+82 this week" />
-        <Kpi icon={Wallet} label="Platform GMV" value={kzt(gmv)} sub={`SaaS MRR ${kzt(saas)}`} />
-        <Kpi icon={Percent} label="Take rate" value="12%" sub="on pass redemptions" />
+        <Kpi icon={Building2} label={t("admin.kpi.clubs")} value={String(clubs.length)} sub={`${clubs.filter((c) => c.plan === "Trial").length} ${t("admin.kpi.onTrial")}`} />
+        <Kpi icon={Users} label={t("admin.kpi.users")} value="1 375" sub={t("admin.kpi.usersSub")} />
+        <Kpi icon={Wallet} label={t("admin.kpi.gmv")} value={kzt(gmv)} sub={`${t("admin.kpi.mrr")} ${kzt(saas)}`} />
+        <Kpi icon={Percent} label={t("admin.kpi.take")} value="12%" sub={t("admin.kpi.takeSub")} />
       </div>
 
       <div className="neon-panel p-5">
-        <h2 className="mb-4 font-bold">Partner clubs</h2>
+        <h2 className="mb-4 font-bold">{t("admin.clubs")}</h2>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Club</TableHead>
-              <TableHead>Plan</TableHead>
-              <TableHead>Terminals</TableHead>
-              <TableHead>Occupancy</TableHead>
-              <TableHead>Rating</TableHead>
-              <TableHead className="text-right">SaaS fee</TableHead>
+              <TableHead>{t("admin.col.club")}</TableHead>
+              <TableHead>{t("admin.col.plan")}</TableHead>
+              <TableHead>{t("admin.col.terminals")}</TableHead>
+              <TableHead>{t("admin.col.occupancy")}</TableHead>
+              <TableHead>{t("admin.col.rating")}</TableHead>
+              <TableHead className="text-right">{t("admin.col.fee")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -71,7 +73,7 @@ function AdminPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="neon-panel p-5">
-          <h2 className="mb-4 font-bold">All transactions</h2>
+          <h2 className="mb-4 font-bold">{t("admin.tx")}</h2>
           <div className="space-y-2">
             {payments.map((p) => (
               <div key={p.id} className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-4 py-3 text-sm">
@@ -86,7 +88,7 @@ function AdminPage() {
         </div>
 
         <div className="neon-panel p-5">
-          <h2 className="mb-4 font-bold">Accounts & passes</h2>
+          <h2 className="mb-4 font-bold">{t("admin.accounts")}</h2>
           <div className="space-y-2">
             {users.map((u) => (
               <div key={u.id} className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-4 py-3 text-sm">
@@ -101,7 +103,7 @@ function AdminPage() {
               <div key={s.id} className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-4 py-3 text-sm">
                 <div>
                   <p className="font-medium">{s.name}</p>
-                  <p className="text-xs text-muted-foreground capitalize">{s.scope} · {s.hoursLeft}h left · until {s.validUntil}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{s.scope} · {s.hoursLeft}{t("admin.hoursLeft")} {s.validUntil}</p>
                 </div>
                 <span className="font-bold text-accent">{kzt(s.priceKzt)}</span>
               </div>

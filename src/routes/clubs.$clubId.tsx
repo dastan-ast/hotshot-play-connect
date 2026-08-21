@@ -8,6 +8,7 @@ import { PaymentDialog } from "@/components/PaymentDialog";
 import { pcZones, kzt, type PaymentMethod } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/clubs/$clubId")({
   head: () => ({
@@ -27,6 +28,7 @@ const takenSeats = [2, 5, 9, 14, 21];
 function ClubPage() {
   const { clubId } = Route.useParams();
   const { clubs, addBooking, passHours } = useStore();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const club = clubs.find((c) => c.id === clubId);
   const zones = pcZones.filter((z) => z.clubId === clubId);
@@ -39,8 +41,8 @@ function ClubPage() {
   if (!club) {
     return (
       <div className="neon-panel p-8 text-center">
-        <p className="font-semibold">Club not found</p>
-        <Button asChild className="mt-4"><Link to="/">Back to map</Link></Button>
+        <p className="font-semibold">{t("club.notfound")}</p>
+        <Button asChild className="mt-4"><Link to="/">{t("club.back")}</Link></Button>
       </div>
     );
   }
@@ -61,7 +63,7 @@ function ClubPage() {
       paidWith,
       status: "upcoming",
     });
-    toast.success(`Seat ${seat} booked at ${club.name} · ${slot}`);
+    toast.success(`${t("club.booked")}: #${seat} · ${club.name} · ${slot}`);
     setCheckout(false);
     navigate({ to: "/profile" });
   };
@@ -69,7 +71,7 @@ function ClubPage() {
   return (
     <div className="space-y-6">
       <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Back to map
+        <ArrowLeft className="size-4" /> {t("club.back")}
       </Link>
 
       <section className="neon-panel overflow-hidden">
@@ -82,8 +84,8 @@ function ClubPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Badge variant="secondary"><Star className="mr-1 size-3 text-accent" />{club.rating} · {club.reviews} reviews</Badge>
-            <Badge className="bg-primary/15 text-primary">{club.occupancy}% occupied</Badge>
+            <Badge variant="secondary"><Star className="mr-1 size-3 text-accent" />{club.rating} · {club.reviews} {t("club.reviews")}</Badge>
+            <Badge className="bg-primary/15 text-primary">{club.occupancy}% {t("club.occupied")}</Badge>
           </div>
         </div>
       </section>
@@ -91,7 +93,7 @@ function ClubPage() {
       <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
         <section className="neon-panel space-y-6 p-5">
           <div>
-            <h2 className="mb-3 font-bold">Zones</h2>
+            <h2 className="mb-3 font-bold">{t("club.zones")}</h2>
             <div className="grid gap-3 sm:grid-cols-3">
               {zones.map((z) => (
                 <button
@@ -111,7 +113,7 @@ function ClubPage() {
           </div>
 
           <div>
-            <h2 className="mb-3 font-bold">Pick a seat · {zone.name}</h2>
+            <h2 className="mb-3 font-bold">{t("club.pickseat")} · {zone.name}</h2>
             <div className="grid grid-cols-6 gap-2 sm:grid-cols-10">
               {Array.from({ length: zone.seats }, (_, i) => i + 1).map((n) => {
                 const taken = takenSeats.includes(n);
@@ -133,12 +135,12 @@ function ClubPage() {
               })}
             </div>
             <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
-              <span>■ available</span><span className="opacity-40">■ occupied</span><span className="text-primary">■ selected</span>
+              <span>■ {t("club.available")}</span><span className="opacity-40">■ {t("club.occupiedSeat")}</span><span className="text-primary">■ {t("club.selected")}</span>
             </div>
           </div>
 
           <div>
-            <h2 className="mb-3 font-bold">Time slot</h2>
+            <h2 className="mb-3 font-bold">{t("club.timeslot")}</h2>
             <div className="flex flex-wrap gap-2">
               {SLOTS.map((s) => (
                 <button
@@ -157,12 +159,12 @@ function ClubPage() {
         </section>
 
         <aside className="neon-panel h-fit space-y-4 p-5 lg:sticky lg:top-24">
-          <h2 className="font-bold">Your booking</h2>
+          <h2 className="font-bold">{t("club.booking")}</h2>
           <dl className="space-y-2 text-sm">
-            <Row label="Club" value={club.name} />
-            <Row label="Zone" value={`${zone.name} (${zone.type})`} />
-            <Row label="Seat" value={seat ? `#${seat}` : "not selected"} />
-            <Row label="Start" value={`Today, ${slot}`} />
+            <Row label={t("club.club")} value={club.name} />
+            <Row label={t("club.zone")} value={`${zone.name} (${zone.type})`} />
+            <Row label={t("club.seat")} value={seat ? `#${seat}` : t("club.notSelected")} />
+            <Row label={t("club.start")} value={`${t("club.today")}, ${slot}`} />
           </dl>
           <div className="flex items-center gap-2">
             {[1, 2, 3, 5].map((h) => (
@@ -179,11 +181,11 @@ function ClubPage() {
             ))}
           </div>
           <div className="flex items-center justify-between border-t border-border pt-3">
-            <span className="text-muted-foreground">Total</span>
+            <span className="text-muted-foreground">{t("club.total")}</span>
             <span className="text-xl font-extrabold neon-text">{kzt(total)}</span>
           </div>
           <Button className="w-full" disabled={!seat} onClick={() => setCheckout(true)}>
-            {seat ? "Pay & book" : "Select a seat"}
+            {seat ? t("club.pay") : t("club.selectSeat")}
           </Button>
           <Button
             variant="secondary"
@@ -191,7 +193,7 @@ function ClubPage() {
             disabled={!seat || passHours < hours}
             onClick={() => confirm("HotShot Pass" as PaymentMethod)}
           >
-            Use HotShot Pass ({passHours}h left)
+            {t("club.usePass")} ({passHours}h)
           </Button>
         </aside>
       </div>

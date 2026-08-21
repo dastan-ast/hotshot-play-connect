@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PaymentDialog } from "@/components/PaymentDialog";
 import { pcZones, revenueSeries, saasPlans, kzt } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/partner")({
   head: () => ({
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/partner")({
 
 function PartnerPage() {
   const { clubs, bookings, payments, updateClub, paySaas } = useStore();
+  const { t } = useI18n();
   const [clubId, setClubId] = useState(clubs[0]!.id);
   const club = clubs.find((c) => c.id === clubId)!;
   const zones = pcZones.filter((z) => z.clubId === clubId);
@@ -36,8 +38,8 @@ function PartnerPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold">Partner dashboard</h1>
-          <p className="text-sm text-muted-foreground">Manage your club on HotShot Play</p>
+          <h1 className="text-2xl font-extrabold">{t("partner.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("partner.subtitle")}</p>
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
           {clubs.map((c) => (
@@ -56,24 +58,23 @@ function PartnerPage() {
         <div className="neon-panel flex flex-wrap items-center gap-3 border-accent/40 p-4 cyan-glow">
           <AlertTriangle className="size-5 text-accent" />
           <p className="text-sm">
-            <b>Free trial active</b> — full platform access until <b>{club.trialEndsAt}</b>. Pick a plan to keep bookings running
-            after the trial.
+            <b>{t("partner.trialActive")}</b> — {t("partner.trialText")} <b>{club.trialEndsAt}</b>. {t("partner.trialText2")}
           </p>
           <Button size="sm" className="ml-auto" onClick={() => setPlanPending(saasPlans[1]!)}>
-            Activate subscription
+            {t("partner.activate")}
           </Button>
         </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={Activity} label="Occupancy today" value={`${club.occupancy}%`} sub="+6% vs last week" />
-        <Kpi icon={TrendingUp} label="Revenue (7 days)" value={kzt(weekRevenue)} sub="+18% vs last week" />
-        <Kpi icon={CalendarCheck} label="Active bookings" value={String(bookings.filter((b) => b.clubId === clubId).length + 27)} sub="12 via HotShot Pass" />
-        <Kpi icon={Cpu} label="Terminals" value={String(club.terminals)} sub={`${zones.length} zones`} />
+        <Kpi icon={Activity} label={t("partner.kpi.occupancy")} value={`${club.occupancy}%`} sub={`+6% ${t("partner.kpi.vsWeek")}`} />
+        <Kpi icon={TrendingUp} label={t("partner.kpi.revenue")} value={kzt(weekRevenue)} sub={`+18% ${t("partner.kpi.vsWeek")}`} />
+        <Kpi icon={CalendarCheck} label={t("partner.kpi.bookings")} value={String(bookings.filter((b) => b.clubId === clubId).length + 27)} sub={t("partner.kpi.viaPass")} />
+        <Kpi icon={Cpu} label={t("partner.kpi.terminals")} value={String(club.terminals)} sub={`${zones.length} ${t("partner.kpi.zones")}`} />
       </div>
 
       <div className="neon-panel p-5">
-        <h2 className="mb-4 font-bold">Revenue & bookings</h2>
+        <h2 className="mb-4 font-bold">{t("partner.chart")}</h2>
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={revenueSeries}>
@@ -98,9 +99,9 @@ function PartnerPage() {
 
       <Tabs defaultValue="zones" className="neon-panel p-5">
         <TabsList className="mb-4">
-          <TabsTrigger value="zones">Zones & pricing</TabsTrigger>
-          <TabsTrigger value="club">Club settings</TabsTrigger>
-          <TabsTrigger value="billing">SaaS billing</TabsTrigger>
+          <TabsTrigger value="zones">{t("partner.tab.zones")}</TabsTrigger>
+          <TabsTrigger value="club">{t("partner.tab.club")}</TabsTrigger>
+          <TabsTrigger value="billing">{t("partner.tab.billing")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="zones" className="space-y-3">
@@ -111,37 +112,37 @@ function PartnerPage() {
                 <p className="text-xs text-muted-foreground">{z.specs}</p>
               </div>
               <Badge variant="secondary">{z.type}</Badge>
-              <span className="text-sm text-muted-foreground">{z.seats} seats</span>
+              <span className="text-sm text-muted-foreground">{z.seats} {t("partner.seats")}</span>
               <div className="ml-auto flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground">₸ / hour</Label>
+                <Label className="text-xs text-muted-foreground">{t("partner.perHour")}</Label>
                 <Input defaultValue={z.pricePerHour} className="w-28" type="number" />
-                <Button size="sm" variant="secondary" onClick={() => toast.success(`${z.name} pricing updated`)}>Save</Button>
+                <Button size="sm" variant="secondary" onClick={() => toast.success(`${z.name} ${t("partner.priceUpdated")}`)}>{t("partner.save")}</Button>
               </div>
             </div>
           ))}
         </TabsContent>
 
         <TabsContent value="club" className="grid max-w-xl gap-4">
-          <Field label="Club name" value={club.name} onChange={(v) => updateClub(club.id, { name: v })} />
-          <Field label="Address" value={club.address} onChange={(v) => updateClub(club.id, { address: v })} />
+          <Field label={t("partner.clubName")} value={club.name} onChange={(v) => updateClub(club.id, { name: v })} />
+          <Field label={t("partner.address")} value={club.address} onChange={(v) => updateClub(club.id, { address: v })} />
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Opens" value={club.openFrom} onChange={(v) => updateClub(club.id, { openFrom: v })} />
-            <Field label="Closes" value={club.openTo} onChange={(v) => updateClub(club.id, { openTo: v })} />
+            <Field label={t("partner.opens")} value={club.openFrom} onChange={(v) => updateClub(club.id, { openFrom: v })} />
+            <Field label={t("partner.closes")} value={club.openTo} onChange={(v) => updateClub(club.id, { openTo: v })} />
           </div>
-          <Button className="w-fit" onClick={() => toast.success("Club profile saved")}>Save changes</Button>
+          <Button className="w-fit" onClick={() => toast.success(t("partner.profileSaved"))}>{t("partner.saveChanges")}</Button>
         </TabsContent>
 
         <TabsContent value="billing" className="space-y-5">
           <div className="rounded-xl border border-border bg-card/60 p-4 text-sm">
-            Current plan: <b>{club.plan}</b> · {kzt(club.saasFeeKzt)}/month · {club.terminals} terminals
-            {club.plan === "Trial" && <span className="text-accent"> · trial ends {club.trialEndsAt}</span>}
+            {t("partner.currentPlan")}: <b>{club.plan}</b> · {kzt(club.saasFeeKzt)}{t("partner.perMonth")} · {club.terminals} {t("partner.terminalsWord")}
+            {club.plan === "Trial" && <span className="text-accent"> · {t("partner.trialEnds")} {club.trialEndsAt}</span>}
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             {saasPlans.map((p) => (
               <div key={p.id} className={`neon-panel p-5 ${p.highlight ? "neon-glow" : ""}`}>
                 <h3 className="font-bold">{p.name}</h3>
                 <p className="text-xs text-muted-foreground">{p.terminals}</p>
-                <p className="mt-3 text-2xl font-extrabold neon-text">{kzt(p.priceKzt)}<span className="text-sm text-muted-foreground">/mo</span></p>
+                <p className="mt-3 text-2xl font-extrabold neon-text">{kzt(p.priceKzt)}<span className="text-sm text-muted-foreground">{t("partner.mo")}</span></p>
                 <ul className="mt-3 space-y-1.5 text-sm text-muted-foreground">
                   {p.perks.map((perk) => (
                     <li key={perk} className="flex gap-2"><Check className="mt-0.5 size-4 shrink-0 text-accent" />{perk}</li>
@@ -154,7 +155,7 @@ function PartnerPage() {
             ))}
           </div>
           <div>
-            <h3 className="mb-2 font-bold">Subscription invoices</h3>
+            <h3 className="mb-2 font-bold">{t("partner.invoices")}</h3>
             <div className="space-y-2">
               {payments.filter((p) => p.kind === "saas").map((p) => (
                 <div key={p.id} className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-4 py-3 text-sm">
@@ -173,12 +174,12 @@ function PartnerPage() {
       <PaymentDialog
         open={!!planPending}
         onOpenChange={(o) => !o && setPlanPending(null)}
-        title={`${planPending?.name} plan · monthly`}
+        title={`${planPending?.name} ${t("partner.planMonthly")}`}
         amount={planPending?.priceKzt ?? 0}
         onConfirm={(method) => {
           if (!planPending) return;
           paySaas(club.id, planPending.name as typeof club.plan, planPending.priceKzt, method);
-          toast.success(`${club.name} is now on the ${planPending.name} plan`);
+          toast.success(`${club.name}: ${planPending.name} ${t("partner.planSwitched")}`);
           setPlanPending(null);
         }}
       />
