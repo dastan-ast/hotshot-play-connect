@@ -118,7 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 )}
               >
                 <Icon className="size-5" />
-                {item.label}
+                {t(item.label)}
               </Link>
             );
           })}
