@@ -4,6 +4,7 @@ import { ArrowLeft, MapPin, Star, Monitor } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { PaymentDialog } from "@/components/PaymentDialog";
 import { kzt, type PaymentMethod } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
@@ -29,7 +30,7 @@ const takenSeats = [2, 5, 9, 14, 21];
 
 function ClubPage() {
   const { clubId } = Route.useParams();
-  const { clubs, zones: allZones, user, addBooking, passHours } = useStore();
+  const { clubs, zones: allZones, seats: allSeats, user, addBooking, passHours } = useStore();
   const { isAuthenticated } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -40,6 +41,8 @@ function ClubPage() {
   const [slot, setSlot] = useState(SLOTS[4]!);
   const [hours, setHours] = useState(2);
   const [checkout, setCheckout] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
   const [confirmed, setConfirmed] = useState<{ seat: number; slot: string; hours: number; total: number; method: string; code: string } | null>(null);
 
   if (!club) {
@@ -52,11 +55,13 @@ function ClubPage() {
   }
 
   const zone = zones.find((z) => z.id === zoneId)!;
+  const zoneSeats = allSeats.filter((st) => st.zoneId === zone?.id);
   const total = zone.pricePerHour * hours;
 
   const confirm = (paidWith: PaymentMethod) => {
+    const guest = !isAuthenticated;
     const booking = addBooking({
-      userId: user.id,
+      ...(guest ? { guestName: guestName.trim(), guestPhone: guestPhone.trim() } : { userId: user.id }),
       clubId: club.id,
       zoneId: zone.id,
       seatNo: seat ?? 1,
@@ -100,6 +105,15 @@ function ClubPage() {
         </dl>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Button onClick={() => navigate({ to: "/profile" })}>{t("club.viewQr")}</Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              void navigator.clipboard?.writeText(confirmed.code);
+              toast.success(t("wiz.copied"));
+            }}
+          >
+            {t("wiz.copy")}
+          </Button>
           <Button variant="secondary" onClick={() => { setConfirmed(null); setSeat(null); }}>{t("club.bookAnother")}</Button>
         </div>
       </div>
@@ -153,21 +167,22 @@ function ClubPage() {
           <div>
             <h2 className="mb-3 font-bold">{t("club.pickseat")} · {zone.name}</h2>
             <div className="grid grid-cols-6 gap-2 sm:grid-cols-10">
-              {Array.from({ length: zone.seats }, (_, i) => i + 1).map((n) => {
-                const taken = takenSeats.includes(n);
+              {zoneSeats.map((st) => {
+                const taken = takenSeats.includes(st.no) || st.status !== "ok";
                 return (
                   <button
-                    key={n}
+                    key={st.id}
                     disabled={taken}
-                    onClick={() => setSeat(n)}
+                    title={`${st.label} · ${st.specs}`}
+                    onClick={() => setSeat(st.no)}
                     className={cn(
                       "grid aspect-square place-items-center rounded-lg border border-border bg-secondary/50 text-xs font-semibold transition-all",
                       taken && "cursor-not-allowed opacity-30",
-                      seat === n && "border-primary bg-primary text-primary-foreground neon-glow",
+                      seat === st.no && "border-primary bg-primary text-primary-foreground neon-glow",
                     )}
                   >
                     <Monitor className="size-3.5" />
-                    {n}
+                    {st.no}
                   </button>
                 );
               })}
@@ -227,9 +242,30 @@ function ClubPage() {
               {seat ? t("club.pay") : t("club.selectSeat")}
             </Button>
           ) : (
-            <Button className="w-full" asChild>
-              <Link to="/auth">{t("auth.signInToBook")}</Link>
-            </Button>
+            <div className="space-y-3 rounded-xl border border-border bg-card/60 p-3">
+              <div>
+                <p className="text-sm font-semibold">{t("wiz.guestTitle")}</p>
+                <p className="text-xs text-muted-foreground">{t("wiz.guestHint")}</p>
+              </div>
+              <Input placeholder={t("wiz.name")} value={guestName} onChange={(e) => setGuestName(e.target.value)} />
+              <Input placeholder={t("wiz.phone")} value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} />
+              <Button
+                className="w-full"
+                disabled={!seat}
+                onClick={() => {
+                  if (!guestName.trim() || !guestPhone.trim()) {
+                    toast.error(t("wiz.needContacts"));
+                    return;
+                  }
+                  setCheckout(true);
+                }}
+              >
+                {seat ? t("wiz.guestPay") : t("club.selectSeat")}
+              </Button>
+              <Link to="/auth" className="block text-center text-xs text-muted-foreground underline">
+                {t("auth.signin")}
+              </Link>
+            </div>
           )}
           <Button
             variant="secondary"
