@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PaymentDialog } from "@/components/PaymentDialog";
-import { pcZones, revenueSeries, saasPlans, kzt } from "@/lib/mock-db";
+import { revenueSeries, saasPlans, kzt } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
+import { RequireRole } from "@/components/RequireRole";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const Route = createFileRoute("/partner")({
   head: () => ({
@@ -22,15 +24,26 @@ export const Route = createFileRoute("/partner")({
       { property: "og:description", content: "Analytics, pricing and SaaS billing for computer clubs on HotShot Play." },
     ],
   }),
-  component: PartnerPage,
+  component: () => (
+    <RequireRole roles={["owner", "admin"]}>
+      <PartnerPage />
+    </RequireRole>
+  ),
 });
 
+const daysLeft = (iso: string) => {
+  const diff = Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
+  return diff;
+};
+
 function PartnerPage() {
-  const { clubs, bookings, payments, updateClub, paySaas } = useStore();
+  const { clubs, zones: allZones, bookings, payments, updateClub, updateZone, paySaas } = useStore();
   const { t } = useI18n();
   const [clubId, setClubId] = useState(clubs[0]!.id);
   const club = clubs.find((c) => c.id === clubId)!;
-  const zones = pcZones.filter((z) => z.clubId === clubId);
+  const zones = allZones.filter((z) => z.clubId === clubId);
+  const clubBookings = bookings.filter((b) => b.clubId === clubId);
+  const trialDays = daysLeft(club.trialEndsAt);
   const [planPending, setPlanPending] = useState<(typeof saasPlans)[number] | null>(null);
   const weekRevenue = revenueSeries.reduce((s, d) => s + d.revenue, 0);
 
@@ -54,17 +67,24 @@ function PartnerPage() {
         </div>
       </div>
 
-      {club.plan === "Trial" && (
-        <div className="neon-panel flex flex-wrap items-center gap-3 border-accent/40 p-4 cyan-glow">
-          <AlertTriangle className="size-5 text-accent" />
-          <p className="text-sm">
-            <b>{t("partner.trialActive")}</b> — {t("partner.trialText")} <b>{club.trialEndsAt}</b>. {t("partner.trialText2")}
+      <div className="neon-panel flex flex-wrap items-center gap-4 border-accent/40 p-4 cyan-glow">
+        <AlertTriangle className="size-5 shrink-0 text-accent" />
+        <div className="text-sm">
+          <p className="font-bold">
+            {t("partner.sub.title")}: {club.plan} · {t(`status.${club.status}`)}
           </p>
-          <Button size="sm" className="ml-auto" onClick={() => setPlanPending(saasPlans[1]!)}>
-            {t("partner.activate")}
-          </Button>
+          <p className="text-muted-foreground">
+            {club.plan === "Trial"
+              ? trialDays > 0
+                ? `${t("partner.sub.daysLeft")}: ${trialDays} · ${t("partner.trialEnds")} ${club.trialEndsAt}`
+                : `${t("partner.sub.expired")} · ${club.trialEndsAt}`
+              : `${kzt(club.saasFeeKzt)}${t("partner.perMonth")} · ${t("partner.trialEnds")} ${club.trialEndsAt}`}
+          </p>
         </div>
-      )}
+        <Button size="sm" className="ml-auto" onClick={() => setPlanPending(saasPlans.find((p) => p.name === club.plan) ?? saasPlans[1]!)}>
+          {t("partner.sub.payNow")}
+        </Button>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi icon={Activity} label={t("partner.kpi.occupancy")} value={`${club.occupancy}%`} sub={`+6% ${t("partner.kpi.vsWeek")}`} />
@@ -97,12 +117,47 @@ function PartnerPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="zones" className="neon-panel p-5">
+      <Tabs defaultValue="bookings" className="neon-panel p-5">
         <TabsList className="mb-4">
+          <TabsTrigger value="bookings">{t("partner.tab.bookings")}</TabsTrigger>
           <TabsTrigger value="zones">{t("partner.tab.zones")}</TabsTrigger>
           <TabsTrigger value="club">{t("partner.tab.club")}</TabsTrigger>
           <TabsTrigger value="billing">{t("partner.tab.billing")}</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="bookings">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("partner.bk.zone")}</TableHead>
+                <TableHead>{t("partner.bk.seat")}</TableHead>
+                <TableHead>{t("partner.bk.when")}</TableHead>
+                <TableHead>{t("partner.bk.hours")}</TableHead>
+                <TableHead>{t("partner.bk.status")}</TableHead>
+                <TableHead className="text-right">{t("partner.bk.total")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {clubBookings.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-sm text-muted-foreground">{t("partner.bk.empty")}</TableCell>
+                </TableRow>
+              )}
+              {clubBookings.map((b) => (
+                <TableRow key={b.id}>
+                  <TableCell>{allZones.find((z) => z.id === b.zoneId)?.name ?? "—"}</TableCell>
+                  <TableCell>#{b.seatNo}</TableCell>
+                  <TableCell>{b.date} · {b.startTime}</TableCell>
+                  <TableCell>{b.hours}h</TableCell>
+                  <TableCell>
+                    <Badge variant={b.status === "active" ? "default" : "secondary"}>{t(`booking.${b.status}`)}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">{kzt(b.totalKzt)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TabsContent>
 
         <TabsContent value="zones" className="space-y-3">
           {zones.map((z) => (
@@ -115,7 +170,8 @@ function PartnerPage() {
               <span className="text-sm text-muted-foreground">{z.seats} {t("partner.seats")}</span>
               <div className="ml-auto flex items-center gap-2">
                 <Label className="text-xs text-muted-foreground">{t("partner.perHour")}</Label>
-                <Input defaultValue={z.pricePerHour} className="w-28" type="number" />
+                <Input value={z.pricePerHour} className="w-28" type="number" onChange={(e) => updateZone(z.id, { pricePerHour: Number(e.target.value) })} />
+                <Input value={z.seats} className="w-20" type="number" aria-label={t("partner.seats")} onChange={(e) => updateZone(z.id, { seats: Number(e.target.value) })} />
                 <Button size="sm" variant="secondary" onClick={() => toast.success(`${z.name} ${t("partner.priceUpdated")}`)}>{t("partner.save")}</Button>
               </div>
             </div>
@@ -129,6 +185,13 @@ function PartnerPage() {
             <Field label={t("partner.opens")} value={club.openFrom} onChange={(v) => updateClub(club.id, { openFrom: v })} />
             <Field label={t("partner.closes")} value={club.openTo} onChange={(v) => updateClub(club.id, { openTo: v })} />
           </div>
+          <Field label={t("partner.cover")} value={club.cover} onChange={(v) => updateClub(club.id, { cover: v })} />
+          <div className="h-24 w-full rounded-xl border border-border" style={{ backgroundImage: club.cover }} />
+          <Field
+            label={t("partner.photos")}
+            value={club.photos.join(", ")}
+            onChange={(v) => updateClub(club.id, { photos: v.split(",").map((x) => x.trim()).filter(Boolean) })}
+          />
           <Button className="w-fit" onClick={() => toast.success(t("partner.profileSaved"))}>{t("partner.saveChanges")}</Button>
         </TabsContent>
 
