@@ -4,19 +4,21 @@ import type { ReactNode } from "react";
 import { useStore } from "@/lib/store";
 import { kzt } from "@/lib/mock-db";
 import { cn } from "@/lib/utils";
+import { LANGS, useI18n } from "@/lib/i18n";
 
 const NAV = {
   player: [
-    { to: "/", label: "Map", icon: Map },
-    { to: "/passes", label: "Passes", icon: Ticket },
-    { to: "/profile", label: "Profile", icon: User },
+    { to: "/", label: "nav.map", icon: Map },
+    { to: "/passes", label: "nav.passes", icon: Ticket },
+    { to: "/profile", label: "nav.profile", icon: User },
   ],
-  owner: [{ to: "/partner", label: "Partner", icon: LayoutDashboard }],
-  admin: [{ to: "/admin", label: "Admin", icon: ShieldCheck }],
+  owner: [{ to: "/partner", label: "nav.partner", icon: LayoutDashboard }],
+  admin: [{ to: "/admin", label: "nav.admin", icon: ShieldCheck }],
 } as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { role, setRole, passHours, balance } = useStore();
+  const { t, lang, setLang } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const nav = NAV[role];
 
