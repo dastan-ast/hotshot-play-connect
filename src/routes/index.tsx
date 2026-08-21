@@ -4,7 +4,7 @@ import { MapPin, Star, Clock, Search, Gamepad2, Zap, Users } from "lucide-react"
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { pcZones, kzt } from "@/lib/mock-db";
+import { kzt } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
@@ -26,14 +26,15 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { clubs } = useStore();
+  const { clubs, zones: pcZones } = useStore();
   const { t } = useI18n();
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState(clubs[0]!.id);
 
+  const listed = useMemo(() => clubs.filter((c) => c.status === "active" || c.status === "trial"), [clubs]);
   const filtered = useMemo(
-    () => clubs.filter((c) => (c.name + c.address).toLowerCase().includes(q.toLowerCase())),
-    [clubs, q],
+    () => listed.filter((c) => (c.name + c.address).toLowerCase().includes(q.toLowerCase())),
+    [listed, q],
   );
   const active = clubs.find((c) => c.id === selected)!;
 

@@ -9,6 +9,7 @@ import { PaymentDialog } from "@/components/PaymentDialog";
 import { passPlans, kzt, type PaymentMethod } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
+import { RequireRole } from "@/components/RequireRole";
 
 export const Route = createFileRoute("/passes")({
   head: () => ({
@@ -19,7 +20,11 @@ export const Route = createFileRoute("/passes")({
       { property: "og:description", content: "Universal gaming hours across partner clubs in Kazakhstan. Pay with Kaspi, Apple Pay, Google Pay or card." },
     ],
   }),
-  component: PassesPage,
+  component: () => (
+    <RequireRole roles={["player"]}>
+      <PassesPage />
+    </RequireRole>
+  ),
 });
 
 function PassesPage() {

@@ -1,14 +1,18 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { useAuth } from "./auth";
 import {
   bookings as seedBookings,
   clubs as seedClubs,
   payments as seedPayments,
+  pcZones as seedZones,
   qrSessions as seedQr,
   subscriptions as seedSubs,
   users,
   type Booking,
   type Club,
+  type ClubStatus,
   type Payment,
+  type PcZone,
   type PaymentMethod,
   type QrSession,
   type Role,
@@ -20,6 +24,7 @@ interface Store {
   setRole: (r: Role) => void;
   user: (typeof users)[number];
   clubs: Club[];
+  zones: PcZone[];
   bookings: Booking[];
   subscriptions: Subscription[];
   qrSessions: QrSession[];
@@ -33,6 +38,8 @@ interface Store {
   startSession: (clubId: string, bookingId?: string) => QrSession;
   stopSession: (sessionId: string) => void;
   updateClub: (clubId: string, patch: Partial<Club>) => void;
+  updateZone: (zoneId: string, patch: Partial<PcZone>) => void;
+  setClubStatus: (clubId: string, status: ClubStatus) => void;
 }
 
 const StoreCtx = createContext<Store | null>(null);
@@ -41,8 +48,11 @@ const id = (p: string) => `${p}${Math.random().toString(36).slice(2, 8)}`;
 const now = () => new Date().toISOString().slice(0, 16).replace("T", " ");
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [role, setRole] = useState<Role>("player");
+  const { user: authUser, loginAs } = useAuth();
+  const role: Role = authUser?.role ?? "player";
+  const setRole = loginAs;
   const [clubs, setClubs] = useState<Club[]>(seedClubs);
+  const [zones, setZones] = useState<PcZone[]>(seedZones);
   const [bookings, setBookings] = useState<Booking[]>(seedBookings);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(seedSubs);
   const [qrSessions, setQrSessions] = useState<QrSession[]>(seedQr);
@@ -50,7 +60,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [passHours, setPassHours] = useState(18);
   const [balance, setBalance] = useState(12400);
 
-  const user = users.find((u) => u.role === role) ?? users[0]!;
+  const user = authUser ?? users.find((u) => u.role === role) ?? users[0]!;
 
   const value = useMemo<Store>(
     () => ({
@@ -58,6 +68,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setRole,
       user,
       clubs,
+      zones,
       bookings,
       subscriptions,
       qrSessions,
@@ -159,8 +170,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setBookings((prev) => prev.map((b) => (b.status === "active" ? { ...b, status: "completed" } : b)));
       },
       updateClub: (clubId, patch) => setClubs((prev) => prev.map((c) => (c.id === clubId ? { ...c, ...patch } : c))),
+      updateZone: (zoneId, patch) => setZones((prev) => prev.map((z) => (z.id === zoneId ? { ...z, ...patch } : z))),
+      setClubStatus: (clubId, status) =>
+        setClubs((prev) => prev.map((c) => (c.id === clubId ? { ...c, status } : c))),
     }),
-    [role, user, clubs, bookings, subscriptions, qrSessions, payments, passHours, balance],
+    [role, setRole, user, clubs, zones, bookings, subscriptions, qrSessions, payments, passHours, balance],
   );
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;

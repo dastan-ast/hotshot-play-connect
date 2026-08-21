@@ -5,9 +5,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { kzt, pcZones } from "@/lib/mock-db";
+import { kzt } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
+import { QRCodeSVG } from "qrcode.react";
+import { RequireRole } from "@/components/RequireRole";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -18,11 +20,15 @@ export const Route = createFileRoute("/profile")({
       { property: "og:description", content: "Track gaming hours, bookings and QR sessions across partner clubs." },
     ],
   }),
-  component: ProfilePage,
+  component: () => (
+    <RequireRole roles={["player"]}>
+      <ProfilePage />
+    </RequireRole>
+  ),
 });
 
 function ProfilePage() {
-  const { user, clubs, bookings, payments, qrSessions, passHours, balance, startSession, stopSession } = useStore();
+  const { user, clubs, zones: pcZones, bookings, payments, qrSessions, passHours, balance, startSession, stopSession } = useStore();
   const { t } = useI18n();
   const openSession = qrSessions.find((s) => s.status === "open");
   const [code, setCode] = useState(openSession?.code ?? "HSP-••••-KZ");
@@ -50,9 +56,16 @@ function ProfilePage() {
         <section className="neon-panel p-5 text-center">
           <h2 className="font-bold">{t("profile.qrTitle")}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{t("profile.qrHint")}</p>
-          <div className="mx-auto mt-5 grid size-48 place-items-center rounded-2xl border border-primary/40 bg-secondary/50 neon-glow">
-            <QrCode className="size-32 text-primary" />
+          <div className="mx-auto mt-5 grid size-48 place-items-center rounded-2xl border border-primary/40 bg-secondary/50 p-3 neon-glow">
+            <QRCodeSVG
+              value={`hotshotplay://pass?user=${user.id}&code=${code}`}
+              size={168}
+              bgColor="transparent"
+              fgColor="#ffffff"
+              level="M"
+            />
           </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">ID: {user.id.toUpperCase()}</p>
           <p className="mt-3 font-mono text-sm tracking-widest text-accent">{code}</p>
           <Badge variant="secondary" className="mt-2">{openSession ? t("profile.running") : t("profile.idle")}</Badge>
           <div className="mt-5 flex gap-2">
