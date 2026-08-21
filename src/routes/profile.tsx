@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { QrCode, Play, Square, Ticket, Wallet, History, Star } from "lucide-react";
+import { Play, Square, Ticket, Wallet, History, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { kzt } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
-import { QRCodeSVG } from "qrcode.react";
 import { RequireRole } from "@/components/RequireRole";
 
 export const Route = createFileRoute("/profile")({
@@ -31,7 +30,8 @@ function ProfilePage() {
   const { user, clubs, zones: pcZones, bookings, payments, qrSessions, passHours, balance, startSession, stopSession } = useStore();
   const { t } = useI18n();
   const openSession = qrSessions.find((s) => s.status === "open");
-  const [code, setCode] = useState(openSession?.code ?? "HSP-••••-KZ");
+  const activeBooking = bookings.find((b) => b.status === "upcoming") ?? bookings[0];
+  const [code, setCode] = useState(openSession?.code ?? activeBooking?.code ?? "HP-••••");
 
   const clubName = (id: string) => clubs.find((c) => c.id === id)?.name ?? "—";
 
@@ -108,6 +108,10 @@ function ProfilePage() {
                     {pcZones.find((z) => z.id === b.zoneId)?.name} · {t("profile.seat")} #{b.seatNo} · {b.date} {b.startTime} · {b.hours}h
                   </p>
                   <p className="mt-1 text-sm">{b.totalKzt ? kzt(b.totalKzt) : t("profile.paidWithPass")} · {String(b.paidWith)}</p>
+                  <p className="mt-2 inline-flex items-center gap-2 rounded-lg border border-primary/40 bg-secondary/50 px-3 py-1.5 text-xs">
+                    <span className="text-muted-foreground">{t("booking.code")}</span>
+                    <span className="font-mono text-sm font-bold tracking-widest text-accent">{b.code}</span>
+                  </p>
                 </div>
               ))}
             </TabsContent>
