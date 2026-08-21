@@ -1,26 +1,41 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Flame, Map, Ticket, User, LayoutDashboard, ShieldCheck } from "lucide-react";
+import { Flame, Map, Ticket, User, LayoutDashboard, ShieldCheck, LogIn, LogOut } from "lucide-react";
 import type { ReactNode } from "react";
 import { useStore } from "@/lib/store";
 import { kzt } from "@/lib/mock-db";
 import { cn } from "@/lib/utils";
 import { LANGS, useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+
+const PLAYER_NAV = [
+  { to: "/", label: "nav.map", icon: Map },
+  { to: "/passes", label: "nav.passes", icon: Ticket },
+  { to: "/profile", label: "nav.profile", icon: User },
+] as const;
 
 const NAV = {
-  player: [
+  guest: [
     { to: "/", label: "nav.map", icon: Map },
-    { to: "/passes", label: "nav.passes", icon: Ticket },
-    { to: "/profile", label: "nav.profile", icon: User },
+    { to: "/auth", label: "auth.signin", icon: LogIn },
   ],
-  owner: [{ to: "/partner", label: "nav.partner", icon: LayoutDashboard }],
-  admin: [{ to: "/admin", label: "nav.admin", icon: ShieldCheck }],
+  player: PLAYER_NAV,
+  owner: [
+    { to: "/", label: "nav.map", icon: Map },
+    { to: "/partner", label: "nav.partner", icon: LayoutDashboard },
+  ],
+  admin: [
+    { to: "/", label: "nav.map", icon: Map },
+    { to: "/admin", label: "nav.admin", icon: ShieldCheck },
+  ],
 } as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { role, setRole, passHours, balance } = useStore();
+  const { passHours, balance } = useStore();
+  const { user, isAuthenticated, role, logout } = useAuth();
   const { t, lang, setLang } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const nav = NAV[role];
+  const nav = NAV[role ?? "guest"];
 
   return (
     <div className="min-h-screen pb-24 md:pb-0">
@@ -84,20 +99,27 @@ export function AppShell({ children }: { children: ReactNode }) {
               ))}
             </div>
 
-            <div className="flex rounded-xl border border-border bg-card/70 p-1 text-xs font-medium">
-              {(["player", "owner", "admin"] as const).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRole(r)}
-                  className={cn(
-                    "rounded-lg px-2.5 py-1.5 transition-all",
-                    role === r ? "bg-primary text-primary-foreground neon-glow" : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {t(`role.${r}`)}
-                </button>
-              ))}
-            </div>
+            {isAuthenticated ? (
+              <div className="flex items-center gap-2">
+                <div className="hidden text-right sm:block">
+                  <p className="text-xs font-semibold leading-tight">{user?.name}</p>
+                  <p className="text-[11px] capitalize text-muted-foreground">{t(`role.${role}`)}</p>
+                </div>
+                <span className="grid size-9 place-items-center rounded-xl bg-primary/20 text-xs font-extrabold neon-glow">
+                  {user?.avatarInitials}
+                </span>
+                <Button size="sm" variant="secondary" onClick={logout} aria-label={t("auth.signout")}>
+                  <LogOut className="size-4" />
+                  <span className="hidden sm:inline">{t("auth.signout")}</span>
+                </Button>
+              </div>
+            ) : (
+              <Button size="sm" asChild>
+                <Link to="/auth">
+                  <LogIn className="size-4" /> {t("auth.signin")}
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </header>
