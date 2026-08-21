@@ -150,8 +150,8 @@ function PartnerPage() {
               )}
               {todayBookings.map((b) => (
                 <TableRow key={b.id}>
-                  <TableCell className="font-medium">{guest(b.userId)?.name ?? "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{guest(b.userId)?.phone ?? "—"}</TableCell>
+                  <TableCell className="font-medium">{(b.userId ? guest(b.userId)?.name : b.guestName) ?? b.guestName ?? "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">{(b.userId ? guest(b.userId)?.phone : b.guestPhone) ?? b.guestPhone ?? "—"}</TableCell>
                   <TableCell className="font-mono font-bold tracking-widest text-accent">{b.code}</TableCell>
                   <TableCell>{allZones.find((z) => z.id === b.zoneId)?.name ?? "—"} · #{b.seatNo}</TableCell>
                   <TableCell>{b.startTime} · {b.hours}h</TableCell>
