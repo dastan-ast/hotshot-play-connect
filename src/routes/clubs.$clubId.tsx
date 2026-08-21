@@ -40,7 +40,7 @@ function ClubPage() {
   const [slot, setSlot] = useState(SLOTS[4]!);
   const [hours, setHours] = useState(2);
   const [checkout, setCheckout] = useState(false);
-  const [confirmed, setConfirmed] = useState<{ seat: number; slot: string; hours: number; total: number; method: string } | null>(null);
+  const [confirmed, setConfirmed] = useState<{ seat: number; slot: string; hours: number; total: number; method: string; code: string } | null>(null);
 
   if (!club) {
     return (
@@ -55,7 +55,7 @@ function ClubPage() {
   const total = zone.pricePerHour * hours;
 
   const confirm = (paidWith: PaymentMethod) => {
-    addBooking({
+    const booking = addBooking({
       userId: user.id,
       clubId: club.id,
       zoneId: zone.id,
@@ -75,6 +75,7 @@ function ClubPage() {
       hours,
       total: String(paidWith) === "HotShot Pass" ? 0 : total,
       method: String(paidWith),
+      code: booking.code,
     });
   };
 
@@ -86,6 +87,10 @@ function ClubPage() {
         </span>
         <h1 className="mt-4 text-2xl font-extrabold">{t("club.confirmTitle")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{t("club.confirmHint")}</p>
+        <div className="mx-auto mt-6 w-fit rounded-2xl border border-primary/50 bg-secondary/50 px-8 py-4 neon-glow">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">{t("booking.code")}</p>
+          <p className="mt-1 font-mono text-3xl font-extrabold tracking-widest neon-text">{confirmed.code}</p>
+        </div>
         <dl className="mt-6 space-y-2 text-left text-sm">
           <Row label={t("club.club")} value={club.name} />
           <Row label={t("club.zone")} value={zone.name} />
