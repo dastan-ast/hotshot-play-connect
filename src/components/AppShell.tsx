@@ -45,33 +45,56 @@ export function AppShell({ children }: { children: ReactNode }) {
                   pathname === item.to && "bg-secondary text-foreground",
                 )}
               >
-                {item.label}
+                {t(item.label)}
               </Link>
             ))}
           </nav>
 
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             {role === "player" && (
-              <div className="hidden items-center gap-3 rounded-xl border border-border bg-card/70 px-3 py-1.5 text-xs sm:flex">
+              <div className="hidden items-center gap-3 rounded-xl border border-border bg-card/70 px-3 py-1.5 text-xs lg:flex">
                 <span className="text-muted-foreground">
-                  Pass <b className="text-accent">{passHours}h</b>
+                  {t("shell.pass")} <b className="text-accent">{passHours}h</b>
                 </span>
                 <span className="text-muted-foreground">
-                  Wallet <b className="text-foreground">{kzt(balance)}</b>
+                  {t("shell.wallet")} <b className="text-foreground">{kzt(balance)}</b>
                 </span>
               </div>
             )}
+
+            <div
+              className="flex rounded-xl border border-border bg-card/70 p-1 text-xs font-semibold"
+              role="group"
+              aria-label={t("lang.label")}
+            >
+              {LANGS.map((l) => (
+                <button
+                  key={l.code}
+                  onClick={() => setLang(l.code)}
+                  aria-pressed={lang === l.code}
+                  className={cn(
+                    "rounded-lg px-2 py-1.5 transition-all",
+                    lang === l.code
+                      ? "bg-accent text-accent-foreground cyan-glow"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+
             <div className="flex rounded-xl border border-border bg-card/70 p-1 text-xs font-medium">
               {(["player", "owner", "admin"] as const).map((r) => (
                 <button
                   key={r}
                   onClick={() => setRole(r)}
                   className={cn(
-                    "rounded-lg px-2.5 py-1.5 capitalize transition-all",
+                    "rounded-lg px-2.5 py-1.5 transition-all",
                     role === r ? "bg-primary text-primary-foreground neon-glow" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {r}
+                  {t(`role.${r}`)}
                 </button>
               ))}
             </div>
