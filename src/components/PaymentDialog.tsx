@@ -46,9 +46,9 @@ export function PaymentDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Checkout — {title}</DialogTitle>
+          <DialogTitle>{t("pay.title")} — {title}</DialogTitle>
           <DialogDescription>
-            Simulated payment gateway. Amount due: <b className="text-foreground">{kzt(amount)}</b>
+            {t("pay.desc")} <b className="text-foreground">{kzt(amount)}</b>
           </DialogDescription>
         </DialogHeader>
 
@@ -76,7 +76,7 @@ export function PaymentDialog({
         {method === "Kaspi QR" && (
           <div className="flex items-center gap-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
             <QrCode className="size-10 text-primary" />
-            Scan the Kaspi QR in the app to confirm the payment.
+            {t("pay.qrHint")}
           </div>
         )}
 
@@ -92,7 +92,7 @@ export function PaymentDialog({
               }, 500);
             }}
           >
-            {processing ? "Processing…" : `Pay ${kzt(amount)} with ${method}`}
+            {processing ? t("pay.processing") : `${t("pay.pay")} ${kzt(amount)} ${t("pay.with")} ${method}`}
           </Button>
         </DialogFooter>
       </DialogContent>
