@@ -7,6 +7,7 @@ import {
   pcZones as seedZones,
   qrSessions as seedQr,
   subscriptions as seedSubs,
+  makeBookingCode,
   users,
   type Booking,
   type Club,
@@ -31,7 +32,8 @@ interface Store {
   payments: Payment[];
   passHours: number;
   balance: number;
-  addBooking: (b: Omit<Booking, "id">) => void;
+  addBooking: (b: Omit<Booking, "id" | "code">) => Booking;
+  checkInBooking: (bookingId: string) => void;
   buyPass: (input: { name: string; scope: "universal" | "club"; clubId?: string; hours: number; priceKzt: number; method: PaymentMethod }) => void;
   topUp: (amount: number, method: PaymentMethod) => void;
   paySaas: (clubId: string, plan: Club["plan"], amount: number, method: PaymentMethod) => void;
@@ -76,7 +78,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       passHours,
       balance,
       addBooking: (b) => {
-        const booking: Booking = { ...b, id: id("b") };
+        const booking: Booking = { ...b, id: id("b"), code: makeBookingCode() };
         setBookings((prev) => [booking, ...prev]);
         if (String(b.paidWith) === "HotShot Pass") {
           setPassHours((h) => Math.max(0, h - b.hours));
@@ -98,7 +100,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             ...prev,
           ]);
         }
+        return booking;
       },
+      checkInBooking: (bookingId) =>
+        setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: "active" } : b))),
       buyPass: ({ name, scope, clubId, hours, priceKzt, method }) => {
         setSubscriptions((prev) => [
           {
