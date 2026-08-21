@@ -27,6 +27,20 @@ export interface PcZone {
   seats: number;
   pricePerHour: number;
   specs: string;
+  description?: string;
+}
+
+export type SeatStatus = "ok" | "repair" | "off";
+
+/** A single machine (PC / console) inside a zone. */
+export interface Seat {
+  id: string;
+  zoneId: string;
+  clubId: string;
+  no: number;
+  label: string;
+  specs: string;
+  status: SeatStatus;
 }
 
 export type ClubStatus = "pending" | "active" | "trial" | "suspended";
@@ -62,7 +76,10 @@ export interface Booking {
   id: string;
   /** short human-readable check-in code, e.g. HP-4821 */
   code: string;
-  userId: string;
+  /** absent for guest bookings made without an account */
+  userId?: string;
+  guestName?: string;
+  guestPhone?: string;
   clubId: string;
   zoneId: string;
   seatNo: number;
@@ -321,6 +338,21 @@ export const pcZones: PcZone[] = [
   { id: "z9", clubId: "c4", name: "VIP Cabins", type: "VIP", seats: 12, pricePerHour: 1700, specs: "i9 · RTX 4080 · 360Hz" },
   { id: "z10", clubId: "c4", name: "PS5 Zone", type: "PS5", seats: 8, pricePerHour: 1900, specs: "PS5 Pro · 75\" 4K120" },
 ];
+
+/** Seats are generated from the zone seed so every zone has real machines. */
+export const seats: Seat[] = pcZones.flatMap((z) =>
+  Array.from({ length: z.seats }, (_, i) => ({
+    id: `${z.id}-s${i + 1}`,
+    zoneId: z.id,
+    clubId: z.clubId,
+    no: i + 1,
+    label: `${z.type === "PS5" ? "PS" : "PC"}-${String(i + 1).padStart(2, "0")}`,
+    specs: z.specs,
+    status: "ok" as SeatStatus,
+  })),
+);
+
+export const ZONE_TYPES: ZoneType[] = ["Standard", "VIP", "PS5", "Bootcamp"];
 
 export const bookings: Booking[] = [
   {
