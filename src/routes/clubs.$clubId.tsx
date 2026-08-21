@@ -5,10 +5,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PaymentDialog } from "@/components/PaymentDialog";
-import { pcZones, kzt, type PaymentMethod } from "@/lib/mock-db";
+import { kzt, type PaymentMethod } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
+import { CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/clubs/$clubId")({
   head: () => ({
@@ -27,16 +29,18 @@ const takenSeats = [2, 5, 9, 14, 21];
 
 function ClubPage() {
   const { clubId } = Route.useParams();
-  const { clubs, addBooking, passHours } = useStore();
+  const { clubs, zones: allZones, user, addBooking, passHours } = useStore();
+  const { isAuthenticated } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
   const club = clubs.find((c) => c.id === clubId);
-  const zones = pcZones.filter((z) => z.clubId === clubId);
+  const zones = allZones.filter((z) => z.clubId === clubId);
   const [zoneId, setZoneId] = useState(zones[0]?.id ?? "");
   const [seat, setSeat] = useState<number | null>(null);
   const [slot, setSlot] = useState(SLOTS[4]!);
   const [hours, setHours] = useState(2);
   const [checkout, setCheckout] = useState(false);
+  const [confirmed, setConfirmed] = useState<{ seat: number; slot: string; hours: number; total: number; method: string } | null>(null);
 
   if (!club) {
     return (
@@ -52,7 +56,7 @@ function ClubPage() {
 
   const confirm = (paidWith: PaymentMethod) => {
     addBooking({
-      userId: "u1",
+      userId: user.id,
       clubId: club.id,
       zoneId: zone.id,
       seatNo: seat ?? 1,
@@ -65,8 +69,37 @@ function ClubPage() {
     });
     toast.success(`${t("club.booked")}: #${seat} · ${club.name} · ${slot}`);
     setCheckout(false);
-    navigate({ to: "/profile" });
+    setConfirmed({
+      seat: seat ?? 1,
+      slot,
+      hours,
+      total: String(paidWith) === "HotShot Pass" ? 0 : total,
+      method: String(paidWith),
+    });
   };
+
+  if (confirmed) {
+    return (
+      <div className="neon-panel mx-auto max-w-lg p-8 text-center">
+        <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary/20 neon-glow">
+          <CheckCircle2 className="size-8 text-primary" />
+        </span>
+        <h1 className="mt-4 text-2xl font-extrabold">{t("club.confirmTitle")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("club.confirmHint")}</p>
+        <dl className="mt-6 space-y-2 text-left text-sm">
+          <Row label={t("club.club")} value={club.name} />
+          <Row label={t("club.zone")} value={zone.name} />
+          <Row label={t("club.seat")} value={`#${confirmed.seat}`} />
+          <Row label={t("club.start")} value={`${t("club.today")}, ${confirmed.slot} · ${confirmed.hours}h`} />
+          <Row label={t("club.total")} value={confirmed.total ? `${kzt(confirmed.total)} · ${confirmed.method}` : confirmed.method} />
+        </dl>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <Button onClick={() => navigate({ to: "/profile" })}>{t("club.viewQr")}</Button>
+          <Button variant="secondary" onClick={() => { setConfirmed(null); setSeat(null); }}>{t("club.bookAnother")}</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -184,13 +217,19 @@ function ClubPage() {
             <span className="text-muted-foreground">{t("club.total")}</span>
             <span className="text-xl font-extrabold neon-text">{kzt(total)}</span>
           </div>
-          <Button className="w-full" disabled={!seat} onClick={() => setCheckout(true)}>
-            {seat ? t("club.pay") : t("club.selectSeat")}
-          </Button>
+          {isAuthenticated ? (
+            <Button className="w-full" disabled={!seat} onClick={() => setCheckout(true)}>
+              {seat ? t("club.pay") : t("club.selectSeat")}
+            </Button>
+          ) : (
+            <Button className="w-full" asChild>
+              <Link to="/auth">{t("auth.signInToBook")}</Link>
+            </Button>
+          )}
           <Button
             variant="secondary"
             className="w-full"
-            disabled={!seat || passHours < hours}
+            disabled={!isAuthenticated || !seat || passHours < hours}
             onClick={() => confirm("HotShot Pass" as PaymentMethod)}
           >
             {t("club.usePass")} ({passHours}h)
