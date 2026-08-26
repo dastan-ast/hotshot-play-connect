@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "./auth";
 import {
   SUBSCRIPTION_PLANS,
@@ -54,6 +54,16 @@ const StoreCtx = createContext<Store | null>(null);
 const id = (p: string) => `${p}${Math.random().toString(36).slice(2, 8)}`;
 const now = () => new Date().toISOString().slice(0, 16).replace("T", " ");
 
+// Persist the mock DB in localStorage so bookings/subs survive page reloads (demo mode).
+const DB_KEY = "hsp-db-v1";
+interface PersistedDb {
+  clubs: Club[];
+  bookings: Booking[];
+  subscriptions: UserSubscription[];
+  reviews: Review[];
+  payments: Payment[];
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { user: authUser } = useAuth();
   const [clubs, setClubs] = useState<Club[]>(seedClubs);
@@ -62,6 +72,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [subscriptions, setSubscriptions] = useState<UserSubscription[]>(seedSubs);
   const [reviews, setReviews] = useState<Review[]>(seedReviews);
   const [payments, setPayments] = useState<Payment[]>(seedPayments);
+  const hydrated = useRef(false);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(DB_KEY);
+      if (raw) {
+        const db = JSON.parse(raw) as Partial<PersistedDb>;
+        if (Array.isArray(db.clubs)) setClubs(db.clubs);
+        if (Array.isArray(db.bookings)) setBookings(db.bookings);
+        if (Array.isArray(db.subscriptions)) setSubscriptions(db.subscriptions);
+        if (Array.isArray(db.reviews)) setReviews(db.reviews);
+        if (Array.isArray(db.payments)) setPayments(db.payments);
+      }
+    } catch {
+      // corrupted demo state — fall back to seeds
+    }
+    hydrated.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const db: PersistedDb = { clubs, bookings, subscriptions, reviews, payments };
+    try {
+      window.localStorage.setItem(DB_KEY, JSON.stringify(db));
+    } catch {
+      // storage full — ignore in demo mode
+    }
+  }, [clubs, bookings, subscriptions, reviews, payments]);
 
   const value = useMemo<Store>(() => {
     const activeSubFor = (userId: string) =>
