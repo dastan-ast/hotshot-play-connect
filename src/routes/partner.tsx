@@ -1,430 +1,223 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { TrendingUp, Activity, CalendarCheck, Cpu, AlertTriangle, Check, UserCheck, Plus, Trash2, MonitorSmartphone } from "lucide-react";
+import { CalendarClock, Gift, LayoutDashboard, Settings, Star, Wallet } from "lucide-react";
 import { toast } from "sonner";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
+import { kzt, revenueSeries } from "@/lib/mock-db";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PaymentDialog } from "@/components/PaymentDialog";
-import { revenueSeries, saasPlans, kzt, users, ZONE_TYPES, type SeatStatus, type ZoneType } from "@/lib/mock-db";
-import { useStore } from "@/lib/store";
-import { useI18n } from "@/lib/i18n";
 import { RequireRole } from "@/components/RequireRole";
-import { useAuth } from "@/lib/auth";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const Route = createFileRoute("/partner")({
   head: () => ({
     meta: [
-      { title: "Partner Dashboard — HotShot Play for Clubs" },
-      { name: "description", content: "Club owner dashboard: occupancy, revenue analytics, zone and pricing management, plus SaaS subscription billing with a 7-day free trial." },
-      { property: "og:title", content: "Partner Dashboard — HotShot Play for Clubs" },
-      { property: "og:description", content: "Analytics, pricing and SaaS billing for computer clubs on HotShot Play." },
+      { title: "Кабинет владельца — HotShot Play" },
+      { name: "description", content: "Финансы, отзывы и настройки клуба для владельца на HotShot Play." },
+      { property: "og:title", content: "HotShot Play — кабинет владельца клуба" },
+      { property: "og:description", content: "Выручка, брони, отзывы и настройки клуба." },
+      { property: "og:type", content: "website" },
     ],
   }),
-  component: () => (
-    <RequireRole roles={["owner", "admin"]}>
-      <PartnerPage />
-    </RequireRole>
-  ),
+  component: PartnerPage,
 });
 
-const daysLeft = (iso: string) => {
-  const diff = Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
-  return diff;
-};
-
 function PartnerPage() {
-  const { clubs, zones: allZones, bookings, payments, updateClub, updateZone, paySaas, checkInBooking } = useStore();
+  return (
+    <RequireRole roles={["owner"]}>
+      <PartnerInner />
+    </RequireRole>
+  );
+}
+
+function PartnerInner() {
+  const { user } = useAuth();
+  const { clubs, bookings, reviews, userName, updateClub } = useStore();
   const { t } = useI18n();
-  const { user, role } = useAuth();
-  const owned = clubs.filter((c) => c.ownerId === user?.id);
-  const myClubs = role === "admin" || owned.length === 0 ? clubs : owned;
-  const [clubId, setClubId] = useState(myClubs[0]!.id);
-  const club = myClubs.find((c) => c.id === clubId) ?? myClubs[0]!;
-  const zones = allZones.filter((z) => z.clubId === club.id);
-  const clubBookings = bookings.filter((b) => b.clubId === club.id);
-  const today = new Date().toISOString().slice(0, 10);
-  const todayBookings = clubBookings.filter((b) => b.date === today && b.status !== "cancelled");
-  const guest = (userId: string) => users.find((u) => u.id === userId);
-  const trialDays = daysLeft(club.trialEndsAt);
-  const [planPending, setPlanPending] = useState<(typeof saasPlans)[number] | null>(null);
-  const weekRevenue = revenueSeries.reduce((s, d) => s + d.revenue, 0);
+
+  const club = clubs.find((c) => c.ownerId === user?.id);
+  const [form, setForm] = useState(() => ({
+    name: club?.name ?? "",
+    address: club?.address ?? "",
+    phone: club?.phone ?? "",
+    pricePerHour: club?.pricePerHour ?? 0,
+    totalSeats: club?.totalSeats ?? 0,
+    openFrom: club?.openFrom ?? "10:00",
+    openTo: club?.openTo ?? "02:00",
+  }));
+
+  if (!club) return null;
+
+  const clubBookings = bookings.filter((b) => b.clubId === club.id && b.status !== "cancelled");
+  const clubReviews = reviews.filter((r) => r.clubId === club.id);
+  const factor = club.totalSeats / 60;
+  const series = revenueSeries.map((d) => ({
+    ...d,
+    revenue: Math.round(d.revenue * factor),
+    bookings: Math.round(d.bookings * factor),
+  }));
+  const revenue7d = series.reduce((s, d) => s + d.revenue, 0);
+  const bookings7d = series.reduce((s, d) => s + d.bookings, 0);
+
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({
+      ...f,
+      [k]: k === "pricePerHour" || k === "totalSeats" ? Number(e.target.value) : e.target.value,
+    }));
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold">{t("partner.title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("partner.subtitle")}</p>
-        </div>
-        <div className="ml-auto flex flex-wrap gap-2">
-          {myClubs.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setClubId(c.id)}
-              className={`rounded-lg border border-border px-3 py-2 text-sm transition-all ${clubId === c.id ? "border-primary bg-primary text-primary-foreground neon-glow" : "bg-card/60 text-muted-foreground"}`}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
+      <div>
+        <h1 className="font-display flex items-center gap-2 text-2xl font-bold">
+          <LayoutDashboard className="size-6 text-primary" /> {t("partner.title")}
+          <span className="neon-text">· {club.name}</span>
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("partner.subtitle")}</p>
       </div>
 
-      <div className="neon-panel flex flex-wrap items-center gap-4 border-accent/40 p-4 cyan-glow">
-        <AlertTriangle className="size-5 shrink-0 text-accent" />
-        <div className="text-sm">
-          <p className="font-bold">
-            {t("partner.sub.title")}: {club.plan} · {t(`status.${club.status}`)}
-          </p>
-          <p className="text-muted-foreground">
-            {club.plan === "Trial"
-              ? trialDays > 0
-                ? `${t("partner.sub.daysLeft")}: ${trialDays} · ${t("partner.trialEnds")} ${club.trialEndsAt}`
-                : `${t("partner.sub.expired")} · ${club.trialEndsAt}`
-              : `${kzt(club.saasFeeKzt)}${t("partner.perMonth")} · ${t("partner.trialEnds")} ${club.trialEndsAt}`}
-          </p>
-        </div>
-        <Button size="sm" className="ml-auto" onClick={() => setPlanPending(saasPlans.find((p) => p.name === club.plan) ?? saasPlans[1]!)}>
-          {t("partner.sub.payNow")}
-        </Button>
+      <div className="flex items-start gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-4 text-sm">
+        <Gift className="mt-0.5 size-5 shrink-0 text-accent" />
+        <p>{t("partner.free")}</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={Activity} label={t("partner.kpi.occupancy")} value={`${club.occupancy}%`} sub={`+6% ${t("partner.kpi.vsWeek")}`} />
-        <Kpi icon={TrendingUp} label={t("partner.kpi.revenue")} value={kzt(weekRevenue)} sub={`+18% ${t("partner.kpi.vsWeek")}`} />
-        <Kpi icon={CalendarCheck} label={t("partner.kpi.bookings")} value={String(bookings.filter((b) => b.clubId === clubId).length + 27)} sub={t("partner.kpi.viaPass")} />
-        <Kpi icon={Cpu} label={t("partner.kpi.terminals")} value={String(club.terminals)} sub={`${zones.length} ${t("partner.kpi.zones")}`} />
-      </div>
-
-      <div className="neon-panel p-5">
-        <h2 className="mb-4 font-bold">{t("partner.chart")}</h2>
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={revenueSeries}>
-              <defs>
-                <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.6} />
-                  <stop offset="100%" stopColor="var(--color-chart-1)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="day" stroke="var(--color-muted-foreground)" fontSize={12} />
-              <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickFormatter={(v: number) => `${v / 1000}k`} />
-              <Tooltip
-                contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12 }}
-                formatter={(v: number) => kzt(v)}
-              />
-              <Area type="monotone" dataKey="revenue" stroke="var(--color-chart-1)" fill="url(#rev)" strokeWidth={2} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <Tabs defaultValue="incoming" className="neon-panel p-5">
-        <TabsList className="mb-4">
-          <TabsTrigger value="incoming">{t("partner.tab.incoming")}</TabsTrigger>
-          <TabsTrigger value="bookings">{t("partner.tab.bookings")}</TabsTrigger>
-          <TabsTrigger value="zones">{t("partner.tab.zones")}</TabsTrigger>
-          <TabsTrigger value="club">{t("partner.tab.club")}</TabsTrigger>
-          <TabsTrigger value="billing">{t("partner.tab.billing")}</TabsTrigger>
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview">{t("partner.tab.overview")}</TabsTrigger>
+          <TabsTrigger value="reviews">
+            {t("partner.tab.reviews")} ({clubReviews.length})
+          </TabsTrigger>
+          <TabsTrigger value="settings">
+            <Settings className="size-4" /> {t("partner.tab.settings")}
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="incoming">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("partner.bk.guest")}</TableHead>
-                <TableHead>{t("partner.bk.phone")}</TableHead>
-                <TableHead>{t("partner.bk.code")}</TableHead>
-                <TableHead>{t("partner.bk.zone")}</TableHead>
-                <TableHead>{t("partner.bk.time")}</TableHead>
-                <TableHead>{t("partner.bk.status")}</TableHead>
-                <TableHead className="text-right">{t("partner.bk.action")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {todayBookings.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-sm text-muted-foreground">{t("partner.bk.todayEmpty")}</TableCell>
-                </TableRow>
-              )}
-              {todayBookings.map((b) => (
-                <TableRow key={b.id}>
-                  <TableCell className="font-medium">{(b.userId ? guest(b.userId)?.name : b.guestName) ?? b.guestName ?? "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{(b.userId ? guest(b.userId)?.phone : b.guestPhone) ?? b.guestPhone ?? "—"}</TableCell>
-                  <TableCell className="font-mono font-bold tracking-widest text-accent">{b.code}</TableCell>
-                  <TableCell>{allZones.find((z) => z.id === b.zoneId)?.name ?? "—"} · #{b.seatNo}</TableCell>
-                  <TableCell>{b.startTime} · {b.hours}h</TableCell>
-                  <TableCell>
-                    <Badge variant={b.status === "upcoming" ? "secondary" : "default"}>{t(`booking.${b.status}`)}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {b.status === "upcoming" ? (
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          checkInBooking(b.id);
-                          toast.success(`${b.code} · ${t("partner.bk.checkedin")}`);
-                        }}
-                      >
-                        <UserCheck className="size-4" /> {t("partner.bk.checkin")}
-                      </Button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">{t("partner.bk.checkedin")}</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TabsContent>
-
-        <TabsContent value="bookings">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("partner.bk.zone")}</TableHead>
-                <TableHead>{t("partner.bk.seat")}</TableHead>
-                <TableHead>{t("partner.bk.code")}</TableHead>
-                <TableHead>{t("partner.bk.when")}</TableHead>
-                <TableHead>{t("partner.bk.hours")}</TableHead>
-                <TableHead>{t("partner.bk.status")}</TableHead>
-                <TableHead className="text-right">{t("partner.bk.total")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {clubBookings.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-sm text-muted-foreground">{t("partner.bk.empty")}</TableCell>
-                </TableRow>
-              )}
-              {clubBookings.map((b) => (
-                <TableRow key={b.id}>
-                  <TableCell>{allZones.find((z) => z.id === b.zoneId)?.name ?? "—"}</TableCell>
-                  <TableCell>#{b.seatNo}</TableCell>
-                  <TableCell className="font-mono text-accent">{b.code}</TableCell>
-                  <TableCell>{b.date} · {b.startTime}</TableCell>
-                  <TableCell>{b.hours}h</TableCell>
-                  <TableCell>
-                    <Badge variant={b.status === "active" ? "default" : "secondary"}>{t(`booking.${b.status}`)}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">{kzt(b.totalKzt)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TabsContent>
-
-        <TabsContent value="zones">
-          <ClubBuilder clubId={club.id} />
-        </TabsContent>
-
-
-        <TabsContent value="club" className="grid max-w-xl gap-4">
-          <Field label={t("partner.clubName")} value={club.name} onChange={(v) => updateClub(club.id, { name: v })} />
-          <Field label={t("partner.address")} value={club.address} onChange={(v) => updateClub(club.id, { address: v })} />
-          <div className="grid grid-cols-2 gap-4">
-            <Field label={t("partner.opens")} value={club.openFrom} onChange={(v) => updateClub(club.id, { openFrom: v })} />
-            <Field label={t("partner.closes")} value={club.openTo} onChange={(v) => updateClub(club.id, { openTo: v })} />
-          </div>
-          <Field label={t("partner.cover")} value={club.cover} onChange={(v) => updateClub(club.id, { cover: v })} />
-          <div className="h-24 w-full rounded-xl border border-border" style={{ backgroundImage: club.cover }} />
-          <Field
-            label={t("partner.photos")}
-            value={club.photos.join(", ")}
-            onChange={(v) => updateClub(club.id, { photos: v.split(",").map((x) => x.trim()).filter(Boolean) })}
-          />
-          <Button className="w-fit" onClick={() => toast.success(t("partner.profileSaved"))}>{t("partner.saveChanges")}</Button>
-        </TabsContent>
-
-        <TabsContent value="billing" className="space-y-5">
-          <div className="rounded-xl border border-border bg-card/60 p-4 text-sm">
-            {t("partner.currentPlan")}: <b>{club.plan}</b> · {kzt(club.saasFeeKzt)}{t("partner.perMonth")} · {club.terminals} {t("partner.terminalsWord")}
-            {club.plan === "Trial" && <span className="text-accent"> · {t("partner.trialEnds")} {club.trialEndsAt}</span>}
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {saasPlans.map((p) => (
-              <div key={p.id} className={`neon-panel p-5 ${p.highlight ? "neon-glow" : ""}`}>
-                <h3 className="font-bold">{p.name}</h3>
-                <p className="text-xs text-muted-foreground">{p.terminals}</p>
-                <p className="mt-3 text-2xl font-extrabold neon-text">{kzt(p.priceKzt)}<span className="text-sm text-muted-foreground">{t("partner.mo")}</span></p>
-                <ul className="mt-3 space-y-1.5 text-sm text-muted-foreground">
-                  {p.perks.map((perk) => (
-                    <li key={perk} className="flex gap-2"><Check className="mt-0.5 size-4 shrink-0 text-accent" />{perk}</li>
-                  ))}
-                </ul>
-                <Button className="mt-4 w-full" variant={club.plan === p.name ? "secondary" : "default"} onClick={() => setPlanPending(p)}>
-                  {club.plan === p.name ? "Renew" : "Switch plan"}
-                </Button>
+        <TabsContent value="overview" className="mt-4 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { icon: Wallet, label: t("partner.kpi.revenue"), value: kzt(revenue7d) },
+              { icon: CalendarClock, label: t("partner.kpi.bookings"), value: String(bookings7d) },
+              { icon: Star, label: t("partner.kpi.rating"), value: club.rating.toFixed(1) },
+              { icon: LayoutDashboard, label: t("partner.kpi.seats"), value: String(club.totalSeats) },
+            ].map((kpi) => (
+              <div key={kpi.label} className="neon-panel p-4">
+                <kpi.icon className="size-5 text-primary" />
+                <p className="font-display mt-2 text-xl font-bold">{kpi.value}</p>
+                <p className="text-xs text-muted-foreground">{kpi.label}</p>
               </div>
             ))}
           </div>
-          <div>
-            <h3 className="mb-2 font-bold">{t("partner.invoices")}</h3>
-            <div className="space-y-2">
-              {payments.filter((p) => p.kind === "saas").map((p) => (
-                <div key={p.id} className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-4 py-3 text-sm">
-                  <div>
-                    <p className="font-medium">{p.label}</p>
-                    <p className="text-xs text-muted-foreground">{p.createdAt} · {p.method}</p>
-                  </div>
-                  <span className="font-bold text-accent">{kzt(p.amountKzt)}</span>
-                </div>
-              ))}
+
+          <div className="neon-panel p-5">
+            <p className="text-sm font-semibold">{t("partner.chart")}</p>
+            <div className="mt-4 h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={series}>
+                  <defs>
+                    <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.5} />
+                      <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
+                  <XAxis dataKey="day" stroke="var(--color-muted-foreground)" fontSize={12} />
+                  <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickFormatter={(v: number) => `${Math.round(v / 1000)}k`} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--color-popover)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 12,
+                      fontSize: 12,
+                    }}
+                    formatter={(value) => [kzt(Number(value)), t("partner.kpi.revenue")]}
+                  />
+                  <Area type="monotone" dataKey="revenue" stroke="var(--color-primary)" fill="url(#rev)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            {clubBookings.length} {t("partner.kpi.bookings").toLowerCase()} · {club.address}
+          </p>
+        </TabsContent>
+
+        <TabsContent value="reviews" className="mt-4 space-y-3">
+          {clubReviews.length === 0 && (
+            <p className="neon-panel p-8 text-center text-sm text-muted-foreground">{t("partner.noReviews")}</p>
+          )}
+          {clubReviews.map((r) => (
+            <div key={r.id} className="neon-panel flex items-start gap-3 p-4">
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/20 text-xs font-bold">
+                {userName(r.userId).slice(0, 2).toUpperCase()}
+              </span>
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold">{userName(r.userId)}</p>
+                  <span className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <Star
+                        key={i}
+                        className={cn("size-3.5", i <= r.rating ? "fill-accent text-accent" : "text-muted-foreground/40")}
+                      />
+                    ))}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">{r.text}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{r.createdAt}</p>
+              </div>
+            </div>
+          ))}
+        </TabsContent>
+
+        <TabsContent value="settings" className="mt-4">
+          <div className="neon-panel max-w-2xl space-y-4 p-5 sm:p-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>{t("partner.clubName")}</Label>
+                <Input value={form.name} onChange={set("name")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("partner.phone")}</Label>
+                <Input value={form.phone} onChange={set("phone")} />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>{t("partner.address")}</Label>
+                <Input value={form.address} onChange={set("address")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("partner.price")}</Label>
+                <Input type="number" min={0} step={50} value={form.pricePerHour} onChange={set("pricePerHour")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("partner.seats")}</Label>
+                <Input type="number" min={1} value={form.totalSeats} onChange={set("totalSeats")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("partner.opens")}</Label>
+                <Input value={form.openFrom} onChange={set("openFrom")} placeholder="10:00" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("partner.closes")}</Label>
+                <Input value={form.openTo} onChange={set("openTo")} placeholder="02:00" />
+              </div>
+            </div>
+            <Button
+              className="neon-glow"
+              onClick={() => {
+                updateClub(club.id, form);
+                toast.success(t("partner.saved"));
+              }}
+            >
+              {t("partner.save")}
+            </Button>
           </div>
         </TabsContent>
       </Tabs>
-
-      <PaymentDialog
-        open={!!planPending}
-        onOpenChange={(o) => !o && setPlanPending(null)}
-        title={`${planPending?.name} ${t("partner.planMonthly")}`}
-        amount={planPending?.priceKzt ?? 0}
-        onConfirm={(method) => {
-          if (!planPending) return;
-          paySaas(club.id, planPending.name as typeof club.plan, planPending.priceKzt, method);
-          toast.success(`${club.name}: ${planPending.name} ${t("partner.planSwitched")}`);
-          setPlanPending(null);
-        }}
-      />
-    </div>
-  );
-}
-
-function Kpi({ icon: Icon, label, value, sub }: { icon: typeof Activity; label: string; value: string; sub: string }) {
-  return (
-    <div className="neon-panel p-5">
-      <p className="flex items-center gap-2 text-xs text-muted-foreground"><Icon className="size-4 text-primary" />{label}</p>
-      <p className="mt-2 text-2xl font-extrabold">{value}</p>
-      <p className="text-xs text-accent">{sub}</p>
-    </div>
-  );
-}
-
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="grid gap-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      <Input value={value} onChange={(e) => onChange(e.target.value)} />
-    </div>
-  );
-}
-
-
-const SEAT_STATUSES: SeatStatus[] = ["ok", "repair", "off"];
-
-function ClubBuilder({ clubId }: { clubId: string }) {
-  const { zones: allZones, seats: allSeats, updateZone, addZone, removeZone, addSeats, updateSeat, removeSeat } = useStore();
-  const { t } = useI18n();
-  const zones = allZones.filter((z) => z.clubId === clubId);
-  const [openZone, setOpenZone] = useState<string | null>(zones[0]?.id ?? null);
-  const [draft, setDraft] = useState({ name: "", type: "Standard" as ZoneType, pricePerHour: 900, specs: "RTX 4060 · i5 · 165Hz", seats: 5 });
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-border bg-card/60 p-4">
-        <p className="mb-3 flex items-center gap-2 font-semibold"><Plus className="size-4 text-primary" />{t("owner.addZone")}</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="grid gap-1.5">
-            <Label className="text-xs text-muted-foreground">{t("owner.zoneName")}</Label>
-            <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="VIP Room" />
-          </div>
-          <div className="grid gap-1.5">
-            <Label className="text-xs text-muted-foreground">{t("owner.zoneType")}</Label>
-            <div className="flex flex-wrap gap-1">
-              {ZONE_TYPES.map((zt) => (
-                <button
-                  key={zt}
-                  onClick={() => setDraft({ ...draft, type: zt })}
-                  className={`rounded-lg border border-border px-2 py-1.5 text-xs ${draft.type === zt ? "border-primary bg-primary text-primary-foreground" : "bg-card/60 text-muted-foreground"}`}
-                >
-                  {zt}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="grid gap-1.5">
-            <Label className="text-xs text-muted-foreground">{t("owner.zonePrice")}</Label>
-            <Input type="number" value={draft.pricePerHour} onChange={(e) => setDraft({ ...draft, pricePerHour: Number(e.target.value) })} />
-          </div>
-          <div className="grid gap-1.5">
-            <Label className="text-xs text-muted-foreground">{t("owner.zoneSeats")}</Label>
-            <Input type="number" value={draft.seats} onChange={(e) => setDraft({ ...draft, seats: Number(e.target.value) })} />
-          </div>
-          <div className="grid gap-1.5">
-            <Label className="text-xs text-muted-foreground">{t("owner.zoneSpecs")}</Label>
-            <Input value={draft.specs} onChange={(e) => setDraft({ ...draft, specs: e.target.value })} />
-          </div>
-        </div>
-        <Button
-          className="mt-3"
-          disabled={!draft.name.trim()}
-          onClick={() => {
-            addZone(clubId, { ...draft, name: draft.name.trim(), seats: Math.max(0, draft.seats) });
-            toast.success(`${draft.name} — ${t("owner.zoneAdded")}`);
-            setDraft({ ...draft, name: "" });
-          }}
-        >
-          <Plus className="size-4" /> {t("owner.create")}
-        </Button>
-      </div>
-
-      {zones.length === 0 && <p className="text-sm text-muted-foreground">{t("owner.noZones")}</p>}
-
-      {zones.map((z) => {
-        const seats = allSeats.filter((s) => s.zoneId === z.id);
-        const open = openZone === z.id;
-        return (
-          <div key={z.id} className="rounded-xl border border-border bg-card/60 p-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <button className="min-w-40 text-left" onClick={() => setOpenZone(open ? null : z.id)}>
-                <p className="font-semibold">{z.name}</p>
-                <p className="text-xs text-muted-foreground">{seats.length} {t("partner.seats")} · {z.specs}</p>
-              </button>
-              <Badge variant="secondary">{z.type}</Badge>
-              <div className="ml-auto flex flex-wrap items-center gap-2">
-                <Label className="text-xs text-muted-foreground">{t("partner.perHour")}</Label>
-                <Input value={z.pricePerHour} className="w-28" type="number" onChange={(e) => updateZone(z.id, { pricePerHour: Number(e.target.value) })} />
-                <Input value={z.specs} className="w-56" aria-label={t("owner.zoneSpecs")} onChange={(e) => updateZone(z.id, { specs: e.target.value })} />
-                <Button size="sm" variant="secondary" onClick={() => addSeats(z.id, 1)}><Plus className="size-4" /> {t("owner.addPc")}</Button>
-                <Button size="sm" variant="secondary" onClick={() => addSeats(z.id, 5)}>{t("owner.addFive")}</Button>
-                <Button size="sm" variant="ghost" onClick={() => { removeZone(z.id); toast(t("owner.zoneRemoved")); }}>
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
-            </div>
-
-            {open && (
-              <div className="mt-4 grid gap-2">
-                {seats.map((s) => (
-                  <div key={s.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-2">
-                    <MonitorSmartphone className="size-4 text-accent" />
-                    <Input value={s.label} className="w-32" onChange={(e) => updateSeat(s.id, { label: e.target.value })} />
-                    <Input value={s.specs} className="w-full max-w-sm" onChange={(e) => updateSeat(s.id, { specs: e.target.value })} />
-                    <div className="ml-auto flex items-center gap-1">
-                      {SEAT_STATUSES.map((st) => (
-                        <button
-                          key={st}
-                          onClick={() => updateSeat(s.id, { status: st })}
-                          className={`rounded-lg border border-border px-2 py-1 text-xs ${s.status === st ? "border-primary bg-primary text-primary-foreground" : "bg-card/60 text-muted-foreground"}`}
-                        >
-                          {t(`owner.st.${st}`)}
-                        </button>
-                      ))}
-                      <Button size="sm" variant="ghost" onClick={() => removeSeat(s.id)}><Trash2 className="size-4" /></Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
     </div>
   );
 }

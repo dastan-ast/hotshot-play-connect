@@ -1,421 +1,276 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Building2, Users, Wallet, Percent, Check, X, Plus, UserPlus, Search } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Building2, ShieldCheck, Ticket, Users, Wallet } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { kzt, revenueSeries, saasPlans, type Club, type ClubStatus } from "@/lib/mock-db";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
+import { kzt, revenueSeries, type ClubStatus, type Role } from "@/lib/mock-db";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RequireRole } from "@/components/RequireRole";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { title: "Super Admin — HotShot Play Platform" },
-      { name: "description", content: "Platform-wide control: partner clubs, club applications, SaaS plans and trials, gamer accounts and all transactions across HotShot Play." },
-      { property: "og:title", content: "Super Admin — HotShot Play Platform" },
-      { property: "og:description", content: "Network overview of clubs, applications, subscriptions and payments." },
+      { title: "Суперадмин — HotShot Play" },
+      { name: "description", content: "Модерация клубов, пользователи и выручка платформы HotShot Play." },
+      { property: "og:title", content: "HotShot Play — панель суперадмина" },
+      { property: "og:description", content: "Заявки клубов, пользователи и аналитика платформы." },
+      { property: "og:type", content: "website" },
     ],
   }),
-  component: () => (
-    <RequireRole roles={["admin"]}>
-      <AdminPage />
-    </RequireRole>
-  ),
+  component: AdminPage,
 });
 
-const STATUS_VARIANT: Record<ClubStatus, "default" | "secondary" | "destructive" | "outline"> = {
-  pending: "outline",
-  active: "secondary",
-  trial: "default",
+const STATUS_VARIANT: Record<ClubStatus, "default" | "secondary" | "outline" | "destructive"> = {
+  pending: "secondary",
+  active: "default",
   suspended: "destructive",
 };
 
-const STATUSES: ClubStatus[] = ["pending", "trial", "active", "suspended"];
+const ROLE_VARIANT: Record<Role, "default" | "secondary" | "outline" | "destructive"> = {
+  player: "secondary",
+  clubAdmin: "outline",
+  owner: "default",
+  admin: "destructive",
+};
 
 function AdminPage() {
-  const { clubs, payments, subscriptions, allUsers, setClubStatus, addClub, addOwner, assignOwner, setClubPlan, updateClub } = useStore();
-  const { t } = useI18n();
-  const gmv = payments.reduce((s, p) => s + p.amountKzt, 0);
-  const saas = payments.filter((p) => p.kind === "saas").reduce((s, p) => s + p.amountKzt, 0);
-  const pending = clubs.filter((c) => c.status === "pending");
-  const live = clubs.filter((c) => c.status !== "pending");
-  const owners = allUsers.filter((u) => u.role === "owner");
-
-  const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ClubStatus | "all">("all");
-  const [editing, setEditing] = useState<string | null>(null);
-  const [clubDraft, setClubDraft] = useState({ name: "", city: "Астана", address: "", ownerId: owners[0]?.id ?? "", fromPrice: 800 });
-  const [ownerDraft, setOwnerDraft] = useState({ name: "", email: "", phone: "+7 ", city: "Астана" });
-
-  const filteredClubs = useMemo(
-    () =>
-      clubs.filter(
-        (c) =>
-          (statusFilter === "all" || c.status === statusFilter) &&
-          (c.name + c.address).toLowerCase().includes(q.toLowerCase()),
-      ),
-    [clubs, q, statusFilter],
+  return (
+    <RequireRole roles={["admin"]}>
+      <AdminInner />
+    </RequireRole>
   );
+}
 
-  const ownerName = (id: string) => allUsers.find((u) => u.id === id)?.name ?? "—";
+function AdminInner() {
+  const { clubs, allUsers, payments, setClubStatus, removeClub, userName } = useStore();
+  const { t } = useI18n();
+
+  const pending = clubs.filter((c) => c.status === "pending");
+  const activeCount = clubs.filter((c) => c.status === "active").length;
+  const gmv = payments.filter((p) => p.status === "succeeded").reduce((s, p) => s + p.amountKzt, 0);
+
+  const kpis = [
+    { icon: Building2, label: t("admin.kpi.clubs"), value: String(activeCount) },
+    { icon: Users, label: t("admin.kpi.users"), value: String(allUsers.length) },
+    { icon: Wallet, label: t("admin.kpi.gmv"), value: kzt(gmv) },
+    { icon: Ticket, label: t("admin.kpi.subs"), value: String(payments.length) },
+  ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-extrabold">{t("admin.title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("admin.subtitle")}</p>
+        <h1 className="font-display flex items-center gap-2 text-2xl font-bold">
+          <ShieldCheck className="size-6 text-primary" /> {t("admin.title")}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("admin.subtitle")}</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={Building2} label={t("admin.kpi.clubs")} value={String(live.length)} sub={`${clubs.filter((c) => c.status === "trial").length} ${t("admin.kpi.onTrial")}`} />
-        <Kpi icon={Users} label={t("admin.kpi.users")} value="1 375" sub={t("admin.kpi.usersSub")} />
-        <Kpi icon={Wallet} label={t("admin.kpi.gmv")} value={kzt(gmv)} sub={`${t("admin.kpi.mrr")} ${kzt(saas)}`} />
-        <Kpi icon={Percent} label={t("admin.kpi.take")} value="12%" sub={t("admin.kpi.takeSub")} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {kpis.map((kpi) => (
+          <div key={kpi.label} className="neon-panel p-4">
+            <kpi.icon className="size-5 text-primary" />
+            <p className="font-display mt-2 text-xl font-bold">{kpi.value}</p>
+            <p className="text-xs text-muted-foreground">{kpi.label}</p>
+          </div>
+        ))}
       </div>
 
-      <Tabs defaultValue="overview" className="neon-panel p-5">
-        <TabsList className="mb-4">
+      <Tabs defaultValue="clubs">
+        <TabsList>
+          <TabsTrigger value="clubs">
+            {t("admin.tab.clubs")}
+            {pending.length > 0 && (
+              <span className="ml-1.5 grid size-5 place-items-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                {pending.length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="overview">{t("admin.tab.overview")}</TabsTrigger>
-          <TabsTrigger value="clubs">{t("admin.tab.clubs")}</TabsTrigger>
-          <TabsTrigger value="owners">{t("admin.tab.owners")}</TabsTrigger>
-          <TabsTrigger value="tx">{t("admin.tab.tx")}</TabsTrigger>
+          <TabsTrigger value="users">{t("admin.tab.users")}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
-          <div>
-            <h2 className="mb-4 font-bold">{t("admin.revenue")}</h2>
-            <div className="h-64 w-full">
+        <TabsContent value="overview" className="mt-4">
+          <div className="neon-panel p-5">
+            <p className="text-sm font-semibold">{t("admin.chart")}</p>
+            <div className="mt-4 h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={revenueSeries}>
                   <defs>
-                    <linearGradient id="gmv" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--color-chart-2)" stopOpacity={0.6} />
-                      <stop offset="100%" stopColor="var(--color-chart-2)" stopOpacity={0} />
+                    <linearGradient id="adminRev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.5} />
+                      <stop offset="100%" stopColor="var(--color-accent)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                  <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
                   <XAxis dataKey="day" stroke="var(--color-muted-foreground)" fontSize={12} />
-                  <YAxis stroke="var(--color-muted-foreground)" fontSize={12} width={70} tickFormatter={(v: number) => `${v / 1000}k`} />
+                  <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickFormatter={(v: number) => `${Math.round(v / 1000)}k`} />
                   <Tooltip
-                    contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12 }}
-                    formatter={(v: number) => kzt(v)}
+                    contentStyle={{
+                      background: "var(--color-popover)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 12,
+                      fontSize: 12,
+                    }}
+                    formatter={(value) => [kzt(Number(value)), t("admin.kpi.gmv")]}
                   />
-                  <Area type="monotone" dataKey="revenue" stroke="var(--color-chart-2)" fill="url(#gmv)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="revenue" stroke="var(--color-accent)" fill="url(#adminRev)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
+        </TabsContent>
 
-          <div>
-            <h2 className="mb-4 font-bold">{t("admin.applications")} · {pending.length}</h2>
+        <TabsContent value="clubs" className="mt-4 space-y-6">
+          {/* Applications */}
+          <section>
+            <h2 className="font-display text-lg font-bold">{t("admin.applications")}</h2>
             {pending.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("admin.noApps")}</p>
+              <p className="neon-panel mt-3 p-6 text-center text-sm text-muted-foreground">{t("admin.noApps")}</p>
             ) : (
-              <div className="space-y-2">
-                {pending.map((c) => (
-                  <div key={c.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card/60 px-4 py-3 text-sm">
-                    <div className="min-w-52">
-                      <p className="font-medium">{c.name}</p>
-                      <p className="text-xs text-muted-foreground">{c.address} · {c.terminals} {t("partner.terminalsWord")}</p>
-                    </div>
-                    <Badge variant="outline">{t("status.pending")}</Badge>
-                    <span className="text-xs text-muted-foreground">{t("admin.appliedAt")} {c.appliedAt}</span>
-                    <div className="ml-auto flex gap-2">
-                      <Button size="sm" onClick={() => { setClubStatus(c.id, "trial"); toast.success(`${c.name} — ${t("admin.approved")}`); }}>
-                        <Check className="size-4" /> {t("admin.approve")}
-                      </Button>
-                      <Button size="sm" variant="secondary" onClick={() => { setClubStatus(c.id, "suspended"); toast(`${c.name} — ${t("admin.rejected")}`); }}>
-                        <X className="size-4" /> {t("admin.reject")}
-                      </Button>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {pending.map((club) => (
+                  <div key={club.id} className="neon-panel overflow-hidden">
+                    <div className="h-16" style={{ background: club.cover }} />
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-semibold">{club.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {club.address} · {t("admin.appliedAt")} {club.appliedAt}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {t("admin.col.owner")}: {userName(club.ownerId)} · {club.totalSeats} {t("home.seats")} ·{" "}
+                            {kzt(club.pricePerHour)}
+                            {t("home.perHour")}
+                          </p>
+                        </div>
+                        <Badge variant="secondary">{t("status.pending")}</Badge>
+                      </div>
+                      <div className="mt-3 flex gap-2">
+                        <Button
+                          size="sm"
+                          className="neon-glow"
+                          onClick={() => {
+                            setClubStatus(club.id, "active");
+                            toast.success(`${club.name} ${t("admin.approved")}`);
+                          }}
+                        >
+                          {t("admin.approve")}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            removeClub(club.id);
+                            toast.success(`${club.name} — ${t("admin.rejected")}`);
+                          }}
+                        >
+                          {t("admin.reject")}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </div>
+          </section>
+
+          {/* All clubs */}
+          <section className="neon-panel overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
+                  <th className="p-3">{t("admin.col.club")}</th>
+                  <th className="p-3">{t("admin.col.owner")}</th>
+                  <th className="p-3">{t("admin.col.price")}</th>
+                  <th className="p-3">{t("admin.col.seats")}</th>
+                  <th className="p-3">{t("admin.col.rating")}</th>
+                  <th className="p-3">{t("admin.col.status")}</th>
+                  <th className="p-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {clubs.map((club) => (
+                  <tr key={club.id} className="border-b border-border/50 last:border-0">
+                    <td className="p-3">
+                      <p className="font-medium">{club.name}</p>
+                      <p className="text-xs text-muted-foreground">{club.address}</p>
+                    </td>
+                    <td className="p-3 text-muted-foreground">{userName(club.ownerId)}</td>
+                    <td className="p-3">{kzt(club.pricePerHour)}</td>
+                    <td className="p-3">{club.totalSeats}</td>
+                    <td className="p-3">{club.rating > 0 ? club.rating.toFixed(1) : "—"}</td>
+                    <td className="p-3">
+                      <Badge variant={STATUS_VARIANT[club.status]}>{t(`status.${club.status}`)}</Badge>
+                    </td>
+                    <td className="p-3">
+                      {club.status === "active" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setClubStatus(club.id, "suspended");
+                            toast.success(`${club.name} ${t("admin.statusUpdated")}`);
+                          }}
+                        >
+                          {t("admin.suspend")}
+                        </Button>
+                      )}
+                      {club.status === "suspended" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setClubStatus(club.id, "active");
+                            toast.success(`${club.name} ${t("admin.statusUpdated")}`);
+                          }}
+                        >
+                          {t("admin.restore")}
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
         </TabsContent>
 
-        <TabsContent value="clubs" className="space-y-4">
-          <div className="rounded-xl border border-border bg-card/60 p-4">
-            <p className="mb-3 flex items-center gap-2 font-semibold"><Plus className="size-4 text-primary" />{t("admin.newClub")}</p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              <Field label={t("admin.name")} value={clubDraft.name} onChange={(v) => setClubDraft({ ...clubDraft, name: v })} />
-              <Field label={t("admin.city")} value={clubDraft.city} onChange={(v) => setClubDraft({ ...clubDraft, city: v })} />
-              <Field label={t("admin.address")} value={clubDraft.address} onChange={(v) => setClubDraft({ ...clubDraft, address: v })} />
-              <div className="grid gap-1.5">
-                <Label className="text-xs text-muted-foreground">{t("admin.fromPrice")}</Label>
-                <Input type="number" value={clubDraft.fromPrice} onChange={(e) => setClubDraft({ ...clubDraft, fromPrice: Number(e.target.value) })} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label className="text-xs text-muted-foreground">{t("admin.owner")}</Label>
-                <div className="flex flex-wrap gap-1">
-                  {owners.map((o) => (
-                    <button
-                      key={o.id}
-                      onClick={() => setClubDraft({ ...clubDraft, ownerId: o.id })}
-                      className={`rounded-lg border border-border px-2 py-1.5 text-xs ${clubDraft.ownerId === o.id ? "border-primary bg-primary text-primary-foreground" : "bg-card/60 text-muted-foreground"}`}
-                    >
-                      {o.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <Button
-              className="mt-3"
-              disabled={!clubDraft.name.trim() || !clubDraft.ownerId}
-              onClick={() => {
-                const c = addClub({ ...clubDraft, name: clubDraft.name.trim() });
-                toast.success(`${c.name} ${t("admin.created")}`);
-                setClubDraft({ ...clubDraft, name: "", address: "" });
-              }}
-            >
-              <Plus className="size-4" /> {t("admin.create") === "admin.create" ? t("owner.create") : t("admin.create")}
-            </Button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input className="w-64 pl-9" placeholder={t("admin.search")} value={q} onChange={(e) => setQ(e.target.value)} />
-            </div>
-            {(["all", ...STATUSES] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={`rounded-lg border border-border px-3 py-1.5 text-xs ${statusFilter === s ? "border-primary bg-primary text-primary-foreground" : "bg-card/60 text-muted-foreground"}`}
-              >
-                {s === "all" ? t("admin.filter.all") : t(`status.${s}`)}
-              </button>
-            ))}
-          </div>
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("admin.col.club")}</TableHead>
-                <TableHead>{t("admin.owner")}</TableHead>
-                <TableHead>{t("admin.col.status")}</TableHead>
-                <TableHead>{t("admin.col.plan")}</TableHead>
-                <TableHead>{t("admin.col.terminals")}</TableHead>
-                <TableHead className="text-right">{t("admin.col.fee")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredClubs.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell>
-                    <button className="text-left" onClick={() => setEditing(editing === c.id ? null : c.id)}>
-                      <p className="font-medium">{c.name}</p>
-                      <p className="text-xs text-muted-foreground">{c.address}</p>
-                    </button>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{ownerName(c.ownerId)}</TableCell>
-                  <TableCell><Badge variant={STATUS_VARIANT[c.status]}>{t(`status.${c.status}`)}</Badge></TableCell>
-                  <TableCell>{c.plan}</TableCell>
-                  <TableCell>{c.terminals}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <span>{kzt(c.saasFeeKzt)}</span>
-                      <Button size="sm" variant="ghost" onClick={() => setEditing(editing === c.id ? null : c.id)}>{t("admin.edit")}</Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          {editing && <ClubEditor club={clubs.find((c) => c.id === editing)!} />}
-        </TabsContent>
-
-        <TabsContent value="owners" className="space-y-4">
-          <div className="rounded-xl border border-border bg-card/60 p-4">
-            <p className="mb-3 flex items-center gap-2 font-semibold"><UserPlus className="size-4 text-primary" />{t("admin.newOwner")}</p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label={t("admin.name")} value={ownerDraft.name} onChange={(v) => setOwnerDraft({ ...ownerDraft, name: v })} />
-              <Field label={t("admin.email")} value={ownerDraft.email} onChange={(v) => setOwnerDraft({ ...ownerDraft, email: v })} />
-              <Field label={t("admin.phone")} value={ownerDraft.phone} onChange={(v) => setOwnerDraft({ ...ownerDraft, phone: v })} />
-              <Field label={t("admin.city")} value={ownerDraft.city} onChange={(v) => setOwnerDraft({ ...ownerDraft, city: v })} />
-            </div>
-            <Button
-              className="mt-3"
-              disabled={!ownerDraft.name.trim() || !ownerDraft.email.trim()}
-              onClick={() => {
-                const o = addOwner({ ...ownerDraft, name: ownerDraft.name.trim() });
-                toast.success(`${o.name} ${t("admin.created")}`);
-                setOwnerDraft({ ...ownerDraft, name: "", email: "" });
-              }}
-            >
-              <UserPlus className="size-4" /> {t("owner.create")}
-            </Button>
-          </div>
-
-          <div className="space-y-2">
-            {owners.map((o) => {
-              const theirs = clubs.filter((c) => c.ownerId === o.id);
-              return (
-                <div key={o.id} className="rounded-xl border border-border bg-card/60 p-4 text-sm">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div>
-                      <p className="font-medium">{o.name}</p>
-                      <p className="text-xs text-muted-foreground">{o.email} · {o.phone} · {o.city}</p>
-                    </div>
-                    <Badge variant="secondary">{t("role.owner")}</Badge>
-                    <span className="text-xs text-muted-foreground">{t("admin.clubsOf")}: {theirs.length}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="ml-auto"
-                      onClick={() => {
-                        theirs.forEach((c) => setClubStatus(c.id, "suspended"));
-                        toast(`${o.name} — ${t("status.suspended")}`);
-                      }}
-                    >
-                      {t("admin.suspendOwner")}
-                    </Button>
-                  </div>
-                  {theirs.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {theirs.map((c) => (
-                        <span key={c.id} className="rounded-lg border border-border px-2 py-1 text-xs text-muted-foreground">
-                          {c.name} · {t(`status.${c.status}`)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <div>
-            <h2 className="mb-3 font-bold">{t("admin.accounts")}</h2>
-            <div className="space-y-2">
-              {allUsers.map((u) => (
-                <div key={u.id} className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-4 py-3 text-sm">
-                  <div>
-                    <p className="font-medium">{u.name}</p>
-                    <p className="text-xs text-muted-foreground">{u.email} · {u.phone}</p>
-                  </div>
-                  <Badge variant="secondary" className="capitalize">{t(`role.${u.role}`)}</Badge>
-                </div>
-              ))}
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="tx" className="grid gap-6 lg:grid-cols-2">
-          <div>
-            <h2 className="mb-4 font-bold">{t("admin.tx")}</h2>
-            <div className="space-y-2">
-              {payments.map((p) => (
-                <div key={p.id} className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-4 py-3 text-sm">
-                  <div>
-                    <p className="font-medium">{p.label}</p>
-                    <p className="text-xs text-muted-foreground">{p.createdAt} · {p.method} · {p.kind}</p>
-                  </div>
-                  <span className="font-bold text-accent">{kzt(p.amountKzt)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <h2 className="mb-4 font-bold">{t("admin.accounts")}</h2>
-            <div className="space-y-2">
-              {subscriptions.map((s) => (
-                <div key={s.id} className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-4 py-3 text-sm">
-                  <div>
-                    <p className="font-medium">{s.name}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{s.scope} · {s.hoursLeft}{t("admin.hoursLeft")} {s.validUntil}</p>
-                  </div>
-                  <span className="font-bold text-accent">{kzt(s.priceKzt)}</span>
-                </div>
-              ))}
-            </div>
+        <TabsContent value="users" className="mt-4">
+          <div className="neon-panel overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
+                  <th className="p-3">{t("admin.col.name")}</th>
+                  <th className="p-3">{t("admin.col.email")}</th>
+                  <th className="p-3">{t("admin.col.role")}</th>
+                  <th className="p-3">{t("admin.col.city")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allUsers.map((u) => (
+                  <tr key={u.id} className="border-b border-border/50 last:border-0">
+                    <td className="p-3">
+                      <span className="mr-2 inline-grid size-7 place-items-center rounded-lg bg-primary/20 align-middle text-[10px] font-bold">
+                        {u.avatarInitials}
+                      </span>
+                      {u.name}
+                    </td>
+                    <td className="p-3 text-muted-foreground">{u.email}</td>
+                    <td className="p-3">
+                      <Badge variant={ROLE_VARIANT[u.role]}>{t(`role.${u.role}`)}</Badge>
+                    </td>
+                    <td className="p-3 text-muted-foreground">{u.city}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </TabsContent>
       </Tabs>
-    </div>
-  );
-
-  function ClubEditor({ club }: { club: Club }) {
-    return (
-      <div className="rounded-xl border border-primary/40 bg-card/60 p-4 neon-glow">
-        <p className="mb-3 font-semibold">{t("admin.edit")} · {club.name}</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label={t("admin.name")} value={club.name} onChange={(v) => updateClub(club.id, { name: v })} />
-          <Field label={t("admin.address")} value={club.address} onChange={(v) => updateClub(club.id, { address: v })} />
-          <div className="grid gap-1.5">
-            <Label className="text-xs text-muted-foreground">{t("admin.col.status")}</Label>
-            <div className="flex flex-wrap gap-1">
-              {STATUSES.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setClubStatus(club.id, s)}
-                  className={`rounded-lg border border-border px-2 py-1.5 text-xs ${club.status === s ? "border-primary bg-primary text-primary-foreground" : "bg-card/60 text-muted-foreground"}`}
-                >
-                  {t(`status.${s}`)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="grid gap-1.5">
-            <Label className="text-xs text-muted-foreground">{t("admin.plan")}</Label>
-            <div className="flex flex-wrap gap-1">
-              {saasPlans.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setClubPlan(club.id, p.name as Club["plan"], p.priceKzt)}
-                  className={`rounded-lg border border-border px-2 py-1.5 text-xs ${club.plan === p.name ? "border-primary bg-primary text-primary-foreground" : "bg-card/60 text-muted-foreground"}`}
-                >
-                  {p.name}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="grid gap-1.5 lg:col-span-2">
-            <Label className="text-xs text-muted-foreground">{t("admin.owner")}</Label>
-            <div className="flex flex-wrap gap-1">
-              {owners.map((o) => (
-                <button
-                  key={o.id}
-                  onClick={() => { assignOwner(club.id, o.id); toast.success(`${club.name} → ${o.name}`); }}
-                  className={`rounded-lg border border-border px-2 py-1.5 text-xs ${club.ownerId === o.id ? "border-primary bg-primary text-primary-foreground" : "bg-card/60 text-muted-foreground"}`}
-                >
-                  {o.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        <Button className="mt-3" onClick={() => { setEditing(null); toast.success(t("owner.saved")); }}>{t("admin.save")}</Button>
-      </div>
-    );
-  }
-}
-
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="grid gap-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      <Input value={value} onChange={(e) => onChange(e.target.value)} />
-    </div>
-  );
-}
-
-function Kpi({ icon: Icon, label, value, sub }: { icon: typeof Users; label: string; value: string; sub: string }) {
-  return (
-    <div className="neon-panel p-5">
-      <p className="flex items-center gap-2 text-xs text-muted-foreground"><Icon className="size-4 text-primary" />{label}</p>
-      <p className="mt-2 text-2xl font-extrabold">{value}</p>
-      <p className="text-xs text-accent">{sub}</p>
     </div>
   );
 }
