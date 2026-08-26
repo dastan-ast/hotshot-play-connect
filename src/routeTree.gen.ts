@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as PartnerRouteImport } from './routes/partner'
 import { Route as PassesRouteImport } from './routes/passes'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as StaffRouteImport } from './routes/staff'
 import { Route as ClubsClubIdRouteImport } from './routes/clubs.$clubId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +48,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StaffRoute = StaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClubsClubIdRoute = ClubsClubIdRouteImport.update({
   id: '/clubs/$clubId',
   path: '/clubs/$clubId',
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/partner': typeof PartnerRoute
   '/passes': typeof PassesRoute
   '/profile': typeof ProfileRoute
+  '/staff': typeof StaffRoute
   '/clubs/$clubId': typeof ClubsClubIdRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/partner': typeof PartnerRoute
   '/passes': typeof PassesRoute
   '/profile': typeof ProfileRoute
+  '/staff': typeof StaffRoute
   '/clubs/$clubId': typeof ClubsClubIdRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/partner': typeof PartnerRoute
   '/passes': typeof PassesRoute
   '/profile': typeof ProfileRoute
+  '/staff': typeof StaffRoute
   '/clubs/$clubId': typeof ClubsClubIdRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/partner'
     | '/passes'
     | '/profile'
+    | '/staff'
     | '/clubs/$clubId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/partner'
     | '/passes'
     | '/profile'
+    | '/staff'
     | '/clubs/$clubId'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/partner'
     | '/passes'
     | '/profile'
+    | '/staff'
     | '/clubs/$clubId'
   fileRoutesById: FileRoutesById
 }
@@ -118,6 +130,7 @@ export interface RootRouteChildren {
   PartnerRoute: typeof PartnerRoute
   PassesRoute: typeof PassesRoute
   ProfileRoute: typeof ProfileRoute
+  StaffRoute: typeof StaffRoute
   ClubsClubIdRoute: typeof ClubsClubIdRoute
 }
 
@@ -165,6 +178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/staff': {
+      id: '/staff'
+      path: '/staff'
+      fullPath: '/staff'
+      preLoaderRoute: typeof StaffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/clubs/$clubId': {
       id: '/clubs/$clubId'
       path: '/clubs/$clubId'
@@ -182,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   PartnerRoute: PartnerRoute,
   PassesRoute: PassesRoute,
   ProfileRoute: ProfileRoute,
+  StaffRoute: StaffRoute,
   ClubsClubIdRoute: ClubsClubIdRoute,
 }
 export const routeTree = rootRouteImport

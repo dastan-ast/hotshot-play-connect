@@ -1,25 +1,29 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Flame, Map, Ticket, User, LayoutDashboard, ShieldCheck, LogIn, LogOut } from "lucide-react";
+import { Flame, Map, Ticket, User, LayoutDashboard, ShieldCheck, LogIn, LogOut, ClipboardCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { useStore } from "@/lib/store";
-import { kzt } from "@/lib/mock-db";
 import { cn } from "@/lib/utils";
 import { LANGS, useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import type { Role } from "@/lib/mock-db";
 
-const PLAYER_NAV = [
-  { to: "/", label: "nav.map", icon: Map },
-  { to: "/passes", label: "nav.passes", icon: Ticket },
-  { to: "/profile", label: "nav.profile", icon: User },
-] as const;
+type NavItem = { to: string; label: string; icon: typeof Map };
 
-const NAV = {
+const NAV: Record<Role | "guest", NavItem[]> = {
   guest: [
     { to: "/", label: "nav.map", icon: Map },
     { to: "/auth", label: "auth.signin", icon: LogIn },
   ],
-  player: PLAYER_NAV,
+  player: [
+    { to: "/", label: "nav.map", icon: Map },
+    { to: "/passes", label: "nav.subs", icon: Ticket },
+    { to: "/profile", label: "nav.profile", icon: User },
+  ],
+  clubAdmin: [
+    { to: "/", label: "nav.map", icon: Map },
+    { to: "/staff", label: "nav.staff", icon: ClipboardCheck },
+  ],
   owner: [
     { to: "/", label: "nav.map", icon: Map },
     { to: "/partner", label: "nav.partner", icon: LayoutDashboard },
@@ -28,14 +32,15 @@ const NAV = {
     { to: "/", label: "nav.map", icon: Map },
     { to: "/admin", label: "nav.admin", icon: ShieldCheck },
   ],
-} as const;
+};
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { passHours, balance } = useStore();
+  const { activeSubFor } = useStore();
   const { user, isAuthenticated, role, logout } = useAuth();
   const { t, lang, setLang } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const nav = NAV[role ?? "guest"];
+  const sub = role === "player" && user ? activeSubFor(user.id) : undefined;
 
   return (
     <div className="min-h-screen pb-24 md:pb-0">
@@ -45,7 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="grid size-9 place-items-center rounded-xl neon-glow bg-primary/20">
               <Flame className="size-5 text-primary" />
             </span>
-            <span className="text-lg font-extrabold tracking-tight">
+            <span className="font-display text-lg font-bold tracking-tight">
               HotShot<span className="neon-text"> Play</span>
             </span>
           </Link>
@@ -69,10 +74,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             {role === "player" && (
               <div className="hidden items-center gap-3 rounded-xl border border-border bg-card/70 px-3 py-1.5 text-xs lg:flex">
                 <span className="text-muted-foreground">
-                  {t("shell.pass")} <b className="text-accent">{passHours}h</b>
-                </span>
-                <span className="text-muted-foreground">
-                  {t("shell.wallet")} <b className="text-foreground">{kzt(balance)}</b>
+                  {t("shell.hoursLeft")}{" "}
+                  <b className="text-accent">{sub ? (sub.hoursLeft === null ? "∞" : `${sub.hoursLeft}h`) : "0h"}</b>
                 </span>
               </div>
             )}

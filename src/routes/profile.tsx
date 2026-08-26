@@ -1,175 +1,180 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Play, Square, Ticket, Wallet, History, Star } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { CalendarClock, CreditCard, Ticket } from "lucide-react";
 import { toast } from "sonner";
+import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
+import { SUBSCRIPTION_PLANS, kzt, type BookingStatus } from "@/lib/mock-db";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { kzt } from "@/lib/mock-db";
-import { useStore } from "@/lib/store";
-import { useI18n } from "@/lib/i18n";
+import { Progress } from "@/components/ui/progress";
 import { RequireRole } from "@/components/RequireRole";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "My Profile — HotShot Play" },
-      { name: "description", content: "Your gaming hours, active bookings, QR check-in pass, payment history and reviews on HotShot Play." },
-      { property: "og:title", content: "My Profile — HotShot Play" },
-      { property: "og:description", content: "Track gaming hours, bookings and QR sessions across partner clubs." },
+      { title: "Профиль — HotShot Play" },
+      { name: "description", content: "Мои брони, абонемент и платежи HotShot Play." },
+      { property: "og:title", content: "HotShot Play — профиль игрока" },
+      { property: "og:description", content: "Брони, коды входа и абонемент." },
+      { property: "og:type", content: "website" },
     ],
   }),
-  component: () => (
-    <RequireRole roles={["player"]}>
-      <ProfilePage />
-    </RequireRole>
-  ),
+  component: ProfilePage,
 });
 
-function ProfilePage() {
-  const { user, clubs, zones: pcZones, bookings, payments, qrSessions, passHours, balance, startSession, stopSession } = useStore();
-  const { t } = useI18n();
-  const openSession = qrSessions.find((s) => s.status === "open");
-  const activeBooking = bookings.find((b) => b.status === "upcoming") ?? bookings[0];
-  const [code, setCode] = useState(openSession?.code ?? activeBooking?.code ?? "HP-••••");
+const STATUS_VARIANT: Record<BookingStatus, "default" | "secondary" | "outline" | "destructive"> = {
+  upcoming: "default",
+  active: "secondary",
+  completed: "outline",
+  cancelled: "destructive",
+};
 
+function ProfilePage() {
+  return (
+    <RequireRole roles={["player"]}>
+      <ProfileInner />
+    </RequireRole>
+  );
+}
+
+function ProfileInner() {
+  const { user } = useAuth();
+  const { activeSubFor, bookings, payments, clubs, cancelBooking } = useStore();
+  const { t } = useI18n();
+
+  if (!user) return null;
+  const sub = activeSubFor(user.id);
+  const plan = SUBSCRIPTION_PLANS.find((p) => p.id === sub?.planId);
+  const myBookings = bookings.filter((b) => b.userId === user.id);
+  const myPayments = payments.filter((p) => p.userId === user.id);
   const clubName = (id: string) => clubs.find((c) => c.id === id)?.name ?? "—";
 
   return (
     <div className="space-y-6">
-      <section className="neon-panel flex flex-wrap items-center gap-4 p-5">
+      <div className="flex items-center gap-4">
         <span className="grid size-14 place-items-center rounded-2xl bg-primary/20 text-lg font-extrabold neon-glow">
           {user.avatarInitials}
         </span>
         <div>
-          <h1 className="text-xl font-extrabold">{user.name}</h1>
-          <p className="text-sm text-muted-foreground">{user.email} · {user.city}</p>
+          <h1 className="font-display text-2xl font-bold">{user.name}</h1>
+          <p className="text-sm text-muted-foreground">
+            {user.email} · {user.phone}
+          </p>
         </div>
-        <div className="ml-auto grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Stat icon={Ticket} label={t("profile.passHours")} value={`${passHours}h`} />
-          <Stat icon={Wallet} label={t("profile.wallet")} value={kzt(balance)} />
-          <Stat icon={History} label={t("profile.sessions")} value={String(qrSessions.length)} />
+      </div>
+
+      {/* Subscription card */}
+      <section className="neon-panel p-5 sm:p-6">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Ticket className="size-4 text-primary" /> {t("profile.sub")}
         </div>
+        {sub ? (
+          <div className="mt-3 flex flex-wrap items-center gap-6">
+            <div>
+              <p className="font-display text-2xl font-bold text-primary">{t(`plan.${sub.planId}.name`)}</p>
+              <p className="text-xs text-muted-foreground">
+                {t("profile.validUntil")} {sub.validUntil}
+                {plan ? ` · ${t("profile.cap", { cap: plan.dailyCap })}` : ""}
+              </p>
+            </div>
+            {sub.hoursLeft !== null && sub.hoursTotal !== null ? (
+              <div className="min-w-56 flex-1">
+                <p className="text-sm">
+                  <b className="font-display text-xl text-accent">{sub.hoursLeft}</b>{" "}
+                  <span className="text-xs text-muted-foreground">
+                    {t("profile.hoursLeft")} / {sub.hoursTotal}
+                  </span>
+                </p>
+                <Progress value={(sub.hoursLeft / sub.hoursTotal) * 100} className="mt-2" />
+              </div>
+            ) : (
+              <p className="font-display text-xl font-bold text-accent">∞ {t("profile.unlimited")}</p>
+            )}
+          </div>
+        ) : (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">{t("profile.noSub")}</p>
+            <Button asChild className="neon-glow">
+              <Link to="/passes">{t("profile.choose")}</Link>
+            </Button>
+          </div>
+        )}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
-        <section className="neon-panel p-5 text-center">
-          <h2 className="font-bold">{t("profile.qrTitle")}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">{t("profile.qrHint")}</p>
-          <div className="mx-auto mt-5 w-full rounded-2xl border border-primary/40 bg-secondary/50 px-6 py-8 neon-glow">
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">{t("booking.code")}</p>
-            <p className="mt-2 font-mono text-4xl font-extrabold tracking-[0.3em] neon-text">{code}</p>
-          </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">ID: {user.id.toUpperCase()}</p>
-          <Badge variant="secondary" className="mt-3">{openSession ? t("profile.running") : t("profile.idle")}</Badge>
-          <div className="mt-5 flex gap-2">
-            <Button
-              className="flex-1"
-              disabled={!!openSession}
-              onClick={() => {
-                const s = startSession(clubs[0]!.id, bookings.find((b) => b.status === "upcoming")?.id);
-                setCode(s.code);
-                toast.success(t("profile.started"));
-              }}
+      <Tabs defaultValue="bookings">
+        <TabsList>
+          <TabsTrigger value="bookings">
+            <CalendarClock className="size-4" /> {t("profile.tab.bookings")}
+          </TabsTrigger>
+          <TabsTrigger value="payments">
+            <CreditCard className="size-4" /> {t("profile.tab.payments")}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="bookings" className="mt-4 space-y-3">
+          {myBookings.length === 0 && (
+            <p className="neon-panel p-8 text-center text-sm text-muted-foreground">
+              {t("profile.emptyBookings")}
+            </p>
+          )}
+          {myBookings.map((b) => (
+            <div
+              key={b.id}
+              className="neon-panel flex flex-wrap items-center gap-4 p-4"
             >
-              <Play className="size-4" /> {t("profile.start")}
-            </Button>
-            <Button
-              variant="secondary"
-              className="flex-1"
-              disabled={!openSession}
-              onClick={() => {
-                stopSession(openSession!.id);
-                toast.success(t("profile.stopped"));
-              }}
-            >
-              <Square className="size-4" /> {t("profile.stop")}
-            </Button>
-          </div>
-        </section>
+              <div className="rounded-xl border border-primary/40 bg-primary/10 px-3 py-2 text-center">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("profile.code")}</p>
+                <p className="font-display text-sm font-extrabold tracking-widest text-primary">{b.code}</p>
+              </div>
+              <div className="min-w-40 flex-1">
+                <p className="font-semibold">{clubName(b.clubId)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {b.date} · {b.startTime} · {b.hours}
+                  {t("club.hShort")}
+                </p>
+              </div>
+              <Badge variant={STATUS_VARIANT[b.status]}>{t(`booking.${b.status}`)}</Badge>
+              {b.status === "upcoming" && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    cancelBooking(b.id);
+                    toast.success(t("profile.cancelledToast"));
+                  }}
+                >
+                  {t("profile.cancel")}
+                </Button>
+              )}
+            </div>
+          ))}
+        </TabsContent>
 
-        <section className="neon-panel p-5">
-          <Tabs defaultValue="bookings">
-            <TabsList className="mb-4">
-              <TabsTrigger value="bookings">{t("profile.tab.bookings")}</TabsTrigger>
-              <TabsTrigger value="payments">{t("profile.tab.payments")}</TabsTrigger>
-              <TabsTrigger value="sessions">{t("profile.tab.sessions")}</TabsTrigger>
-              <TabsTrigger value="reviews">{t("profile.tab.reviews")}</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="bookings" className="space-y-3">
-              {bookings.map((b) => (
-                <div key={b.id} className="rounded-xl border border-border bg-card/60 p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-semibold">{clubName(b.clubId)}</p>
-                    <Badge variant={b.status === "upcoming" ? "default" : "secondary"} className="capitalize">{b.status}</Badge>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {pcZones.find((z) => z.id === b.zoneId)?.name} · {t("profile.seat")} #{b.seatNo} · {b.date} {b.startTime} · {b.hours}h
-                  </p>
-                  <p className="mt-1 text-sm">{b.totalKzt ? kzt(b.totalKzt) : t("profile.paidWithPass")} · {String(b.paidWith)}</p>
-                  <p className="mt-2 inline-flex items-center gap-2 rounded-lg border border-primary/40 bg-secondary/50 px-3 py-1.5 text-xs">
-                    <span className="text-muted-foreground">{t("booking.code")}</span>
-                    <span className="font-mono text-sm font-bold tracking-widest text-accent">{b.code}</span>
-                  </p>
-                </div>
-              ))}
-            </TabsContent>
-
-            <TabsContent value="payments" className="space-y-2">
-              {payments.filter((p) => p.userId === "u1").map((p) => (
-                <div key={p.id} className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-4 py-3 text-sm">
-                  <div>
-                    <p className="font-medium">{p.label}</p>
-                    <p className="text-xs text-muted-foreground">{p.createdAt} · {p.method}</p>
-                  </div>
-                  <span className="font-bold text-accent">{kzt(p.amountKzt)}</span>
-                </div>
-              ))}
-            </TabsContent>
-
-            <TabsContent value="sessions" className="space-y-2">
-              {qrSessions.map((s) => (
-                <div key={s.id} className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-4 py-3 text-sm">
-                  <div>
-                    <p className="font-mono">{s.code}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {clubName(s.clubId)} · {s.startedAt}{s.endedAt ? ` → ${s.endedAt}` : ""}
-                    </p>
-                  </div>
-                  <Badge variant={s.status === "open" ? "default" : "secondary"}>{s.status}</Badge>
-                </div>
-              ))}
-            </TabsContent>
-
-            <TabsContent value="reviews" className="space-y-3">
-              {[
-                { club: "Pixel Arena", rating: 5, text: "Fast PCs, comfy chairs, great pass value." },
-                { club: "CyberDome Astana", rating: 4, text: "VIP zone is worth it, a bit noisy on weekends." },
-              ].map((r) => (
-                <div key={r.club} className="rounded-xl border border-border bg-card/60 p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold">{r.club}</p>
-                    <span className="flex items-center gap-1 text-accent text-sm">
-                      {Array.from({ length: r.rating }).map((_, i) => <Star key={i} className="size-3.5 fill-current" />)}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{r.text}</p>
-                </div>
-              ))}
-            </TabsContent>
-          </Tabs>
-        </section>
-      </div>
-    </div>
-  );
-}
-
-function Stat({ icon: Icon, label, value }: { icon: typeof Ticket; label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-card/60 px-4 py-3">
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Icon className="size-3.5" />{label}</p>
-      <p className="mt-1 font-bold">{value}</p>
+        <TabsContent value="payments" className="mt-4 space-y-3">
+          {myPayments.length === 0 && (
+            <p className="neon-panel p-8 text-center text-sm text-muted-foreground">
+              {t("profile.emptyPayments")}
+            </p>
+          )}
+          {myPayments.map((p) => (
+            <div key={p.id} className="neon-panel flex flex-wrap items-center gap-4 p-4">
+              <span className="grid size-10 place-items-center rounded-xl bg-accent/10">
+                <CreditCard className="size-5 text-accent" />
+              </span>
+              <div className="min-w-40 flex-1">
+                <p className="font-semibold">{p.label.startsWith("plan.") ? t(p.label) : p.label}</p>
+                <p className="text-xs text-muted-foreground">
+                  {p.createdAt} · {p.method}
+                </p>
+              </div>
+              <p className="font-display font-bold text-accent">{kzt(p.amountKzt)}</p>
+            </div>
+          ))}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

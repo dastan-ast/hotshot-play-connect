@@ -1,158 +1,157 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check, Sparkles, Wallet } from "lucide-react";
+import { Check, Flame, Infinity as InfinityIcon, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { PaymentDialog } from "@/components/PaymentDialog";
-import { passPlans, kzt, type PaymentMethod } from "@/lib/mock-db";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { RequireRole } from "@/components/RequireRole";
+import { SUBSCRIPTION_PLANS, kzt, type SubscriptionPlan } from "@/lib/mock-db";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { PaymentDialog } from "@/components/PaymentDialog";
+import { Progress } from "@/components/ui/progress";
 
 export const Route = createFileRoute("/passes")({
   head: () => ({
     meta: [
-      { title: "HotShot Play Passes — Gaming Hours for Every Club" },
-      { name: "description", content: "Buy universal gaming passes valid across all HotShot Play partner computer clubs in Astana, or club-specific packages." },
-      { property: "og:title", content: "HotShot Play Passes — Gaming Hours for Every Club" },
-      { property: "og:description", content: "Universal gaming hours across partner clubs in Kazakhstan. Pay with Kaspi, Apple Pay, Google Pay or card." },
+      { title: "Абонементы — HotShot Play" },
+      {
+        name: "description",
+        content: "Игровые абонементы HotShot Play: 3 часа, 5 часов, 30 часов и Безлимит во всех клубах Астаны.",
+      },
+      { property: "og:title", content: "HotShot Play — абонементы для игроков" },
+      { property: "og:description", content: "Один абонемент — все клубы-партнёры." },
+      { property: "og:type", content: "website" },
     ],
   }),
-  component: () => (
-    <RequireRole roles={["player"]}>
-      <PassesPage />
-    </RequireRole>
-  ),
+  component: PassesPage,
 });
 
 function PassesPage() {
-  const { buyPass, topUp, balance, subscriptions } = useStore();
+  const { user, role } = useAuth();
+  const { activeSubFor, buySubscription } = useStore();
   const { t } = useI18n();
-  const [pending, setPending] = useState<(typeof passPlans)[number] | null>(null);
-  const [topUpOpen, setTopUpOpen] = useState(false);
-  const [amount, setAmount] = useState(5000);
+  const navigate = useNavigate();
+  const [payPlan, setPayPlan] = useState<SubscriptionPlan | null>(null);
+
+  const sub = user && role === "player" ? activeSubFor(user.id) : undefined;
+
+  const startBuy = (plan: SubscriptionPlan) => {
+    if (!user || role !== "player") {
+      toast.error(t("passes.signin"));
+      navigate({ to: "/auth" });
+      return;
+    }
+    setPayPlan(plan);
+  };
 
   return (
-    <div className="space-y-10">
-      <div className="max-w-2xl">
-        <Badge className="mb-3 bg-primary/15 text-primary">{t("passes.badge")}</Badge>
-        <h1 className="text-3xl font-extrabold sm:text-4xl">
+    <div className="space-y-8">
+      <section className="max-w-2xl">
+        <span className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
+          <Zap className="size-3.5" /> {t("passes.badge")}
+        </span>
+        <h1 className="font-display mt-4 text-3xl font-bold leading-tight sm:text-5xl">
           {t("passes.title1")} <span className="neon-text">{t("passes.title2")}</span>
         </h1>
-        <p className="mt-3 text-muted-foreground">
-          {t("passes.subtitle")}
-        </p>
-      </div>
+        <p className="mt-3 text-sm text-muted-foreground sm:text-base">{t("passes.subtitle")}</p>
+      </section>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {passPlans.map((p) => (
-          <div
-            key={p.id}
-            className={`neon-panel flex flex-col p-5 ${p.highlight ? "neon-glow" : ""}`}
-          >
-            <div className="flex items-center justify-between">
-              <Badge variant={p.scope === "universal" ? "default" : "secondary"} className="capitalize">
-                {p.scope}
-              </Badge>
-              {p.highlight && <Sparkles className="size-4 text-accent" />}
+      {/* Current subscription */}
+      {role === "player" && (
+        <section className="neon-panel p-5 sm:p-6">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {t("passes.current")}
+          </p>
+          {sub ? (
+            <div className="mt-3 flex flex-wrap items-center gap-6">
+              <div>
+                <p className="font-display text-2xl font-bold text-primary">{t(`plan.${sub.planId}.name`)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("passes.validUntil")} {sub.validUntil}
+                </p>
+              </div>
+              {sub.hoursLeft !== null && sub.hoursTotal !== null ? (
+                <div className="min-w-52 flex-1">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>
+                      {sub.hoursLeft} {t("passes.left")} {sub.hoursTotal} {t("passes.hours")}
+                    </span>
+                  </div>
+                  <Progress value={(sub.hoursLeft / sub.hoursTotal) * 100} className="mt-1.5" />
+                </div>
+              ) : (
+                <span className="flex items-center gap-1.5 text-accent">
+                  <InfinityIcon className="size-5" /> {t("passes.unlimited")}
+                </span>
+              )}
             </div>
-            <h3 className="mt-4 text-lg font-bold">{p.name}</h3>
-            <p className="mt-1 text-3xl font-extrabold neon-text">{kzt(p.priceKzt)}</p>
-            <p className="text-xs text-muted-foreground">{p.hours} {t("passes.hours")} · {Math.round(p.priceKzt / p.hours)} ₸/h</p>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">{t("passes.none")}</p>
+          )}
+        </section>
+      )}
+
+      {/* Plans */}
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {SUBSCRIPTION_PLANS.map((plan) => (
+          <div
+            key={plan.id}
+            className={cn(
+              "neon-panel flex flex-col p-5 transition-transform hover:-translate-y-1",
+              plan.highlight && "neon-glow border-primary/60",
+            )}
+          >
+            {plan.highlight && (
+              <span className="mb-3 inline-flex w-fit items-center gap-1 rounded-full bg-primary/20 px-2.5 py-1 text-[11px] font-bold text-primary">
+                <Flame className="size-3" /> HOT
+              </span>
+            )}
+            <h2 className="font-display text-xl font-bold">{t(`plan.${plan.id}.name`)}</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t(`plan.${plan.id}.tag`)}</p>
+            <p className="font-display mt-4 text-3xl font-extrabold text-accent">
+              {kzt(plan.priceKzt)}
+              <span className="text-xs font-medium text-muted-foreground"> {t("passes.month")}</span>
+            </p>
             <ul className="mt-4 flex-1 space-y-2 text-sm text-muted-foreground">
-              {p.perks.map((perk) => (
-                <li key={perk} className="flex items-start gap-2">
-                  <Check className="mt-0.5 size-4 shrink-0 text-accent" /> {perk}
-                </li>
-              ))}
+              <li className="flex items-center gap-2">
+                <Check className="size-4 text-accent" />
+                {plan.hours === null ? t("passes.unlimited") : `${plan.hours} ${t("passes.hours")}`}
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="size-4 text-accent" /> {t("passes.perk.clubs")}
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="size-4 text-accent" /> {t("passes.perk.valid")}
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="size-4 text-accent" /> {t("passes.perk.cap", { cap: plan.dailyCap })}
+              </li>
             </ul>
-            <Button className="mt-5" onClick={() => setPending(p)}>
+            <Button
+              className={cn("mt-5 w-full", plan.highlight && "neon-glow")}
+              variant={plan.highlight ? "default" : "secondary"}
+              onClick={() => startBuy(plan)}
+            >
               {t("passes.buy")}
             </Button>
           </div>
         ))}
-      </div>
+      </section>
 
-      <div className="neon-panel flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <span className="grid size-11 place-items-center rounded-xl bg-accent/15 cyan-glow">
-            <Wallet className="size-5 text-accent" />
-          </span>
-          <div>
-            <p className="font-semibold">{t("passes.wallet")}</p>
-            <p className="text-sm text-muted-foreground">{t("passes.balance")} {kzt(balance)} · {t("passes.walletHint")}</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-            className="w-32"
-          />
-          <Button variant="secondary" onClick={() => setTopUpOpen(true)}>
-            {t("passes.topup")}
-          </Button>
-        </div>
-      </div>
-
-      {subscriptions.length > 0 && (
-        <div>
-          <h2 className="mb-3 text-lg font-bold">{t("passes.yourSubs")}</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {subscriptions.map((s) => (
-              <div key={s.id} className="neon-panel p-4">
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold">{s.name}</p>
-                  <Badge variant="secondary" className="capitalize">{s.status}</Badge>
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {s.hoursLeft}h {t("passes.left")} {s.hours}h · {t("passes.validUntil")} {s.validUntil}
-                </p>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${(s.hoursLeft / s.hours) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {payPlan && (
+        <PaymentDialog
+          open={!!payPlan}
+          onOpenChange={(open) => !open && setPayPlan(null)}
+          title={t(`plan.${payPlan.id}.name`)}
+          amount={payPlan.priceKzt}
+          onConfirm={(method) => {
+            buySubscription(payPlan.id, method);
+            setPayPlan(null);
+            toast.success(t("passes.bought"));
+          }}
+        />
       )}
-
-      <PaymentDialog
-        open={!!pending}
-        onOpenChange={(o) => !o && setPending(null)}
-        title={pending?.name ?? ""}
-        amount={pending?.priceKzt ?? 0}
-        onConfirm={(method: PaymentMethod) => {
-          if (!pending) return;
-          buyPass({
-            name: pending.name,
-            scope: pending.scope,
-            hours: pending.hours,
-            priceKzt: pending.priceKzt,
-            method,
-          });
-          toast.success(`${pending.name} — ${t("passes.activated")} (+${pending.hours}h)`);
-          setPending(null);
-        }}
-      />
-
-      <PaymentDialog
-        open={topUpOpen}
-        onOpenChange={setTopUpOpen}
-        title={t("passes.topupTitle")}
-        amount={amount}
-        onConfirm={(method) => {
-          topUp(amount, method);
-          toast.success(`${t("passes.toppedUp")} ${kzt(amount)}`);
-          setTopUpOpen(false);
-        }}
-      />
     </div>
   );
 }
