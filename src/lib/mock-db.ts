@@ -1,9 +1,11 @@
 /**
  * HotShot Play — mock database schemas + seed data.
- * Tables: users, clubs, pc_zones, bookings, subscriptions, qr_sessions, payments
+ * MVP model: general halls only (no zones), subscription-hour bookings,
+ * code-based check-in. Tables: users, clubs, reviews, bookings,
+ * subscription_plans, user_subscriptions, payments.
  */
 
-export type Role = "player" | "owner" | "admin";
+export type Role = "player" | "clubAdmin" | "owner" | "admin";
 
 export interface User {
   id: string;
@@ -12,62 +14,43 @@ export interface User {
   phone: string;
   role: Role;
   city: string;
-  balanceKzt: number;
-  passHoursLeft: number;
   avatarInitials: string;
+  /** Club assignment for clubAdmin accounts. */
+  clubId?: string;
 }
 
-export type ZoneType = "Standard" | "VIP" | "PS5" | "Bootcamp";
-
-export interface PcZone {
-  id: string;
-  clubId: string;
-  name: string;
-  type: ZoneType;
-  seats: number;
-  pricePerHour: number;
-  specs: string;
-  description?: string;
-}
-
-export type SeatStatus = "ok" | "repair" | "off";
-
-/** A single machine (PC / console) inside a zone. */
-export interface Seat {
-  id: string;
-  zoneId: string;
-  clubId: string;
-  no: number;
-  label: string;
-  specs: string;
-  status: SeatStatus;
-}
-
-export type ClubStatus = "pending" | "active" | "trial" | "suspended";
+export type ClubStatus = "pending" | "active" | "suspended";
 
 export interface Club {
   id: string;
   name: string;
   city: string;
   address: string;
+  phone: string;
+  /** Real geo coordinates for the map. */
+  lat: number;
+  lng: number;
   rating: number;
-  reviews: number;
+  reviewsCount: number;
   openFrom: string;
   openTo: string;
-  fromPrice: number;
+  pricePerHour: number;
+  totalSeats: number;
+  specs: string;
+  description: string;
   cover: string;
-  /** relative coords on the mock map, 0..100 */
-  mapX: number;
-  mapY: number;
   ownerId: string;
-  plan: "Trial" | "Start" | "Pro" | "Network";
-  trialEndsAt: string;
-  saasFeeKzt: number;
-  terminals: number;
-  occupancy: number;
   status: ClubStatus;
   appliedAt?: string;
-  photos: string[];
+}
+
+export interface Review {
+  id: string;
+  clubId: string;
+  userId: string;
+  rating: number; // 1..5
+  text: string;
+  createdAt: string;
 }
 
 export type BookingStatus = "upcoming" | "active" | "completed" | "cancelled";
@@ -76,44 +59,34 @@ export interface Booking {
   id: string;
   /** short human-readable check-in code, e.g. HP-4821 */
   code: string;
-  /** absent for guest bookings made without an account */
-  userId?: string;
-  guestName?: string;
-  guestPhone?: string;
+  userId: string;
   clubId: string;
-  zoneId: string;
-  seatNo: number;
-  date: string;
-  startTime: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:MM
   hours: number;
-  totalKzt: number;
-  paidWith: PaymentMethod;
   status: BookingStatus;
 }
 
-export interface Subscription {
+/** Player subscription tier (clubs use the software for free). */
+export interface SubscriptionPlan {
   id: string;
-  userId: string;
-  name: string;
-  scope: "universal" | "club";
-  clubId?: string;
-  hours: number;
-  hoursLeft: number;
+  /** purchased hours; null = unlimited within the month */
+  hours: number | null;
   priceKzt: number;
-  validUntil: string;
-  status: "active" | "expired";
+  /** max hours spendable per day */
+  dailyCap: number;
+  highlight?: boolean;
 }
 
-export interface QrSession {
+export interface UserSubscription {
   id: string;
   userId: string;
-  clubId: string;
-  bookingId?: string;
-  code: string;
+  planId: string;
+  hoursTotal: number | null;
+  hoursLeft: number | null;
   startedAt: string;
-  endedAt?: string;
-  minutes: number;
-  status: "open" | "closed";
+  validUntil: string;
+  status: "active" | "expired";
 }
 
 export type PaymentMethod =
@@ -138,13 +111,15 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
 export interface Payment {
   id: string;
   userId: string;
-  kind: "topup" | "booking" | "pass" | "saas";
+  kind: "subscription";
   label: string;
   amountKzt: number;
   method: PaymentMethod;
   createdAt: string;
   status: "succeeded" | "pending" | "failed";
 }
+
+// ---------------- Users (5 demo roles) ----------------
 
 export const users: User[] = [
   {
@@ -154,9 +129,26 @@ export const users: User[] = [
     phone: "+7 701 555 12 12",
     role: "player",
     city: "Astana",
-    balanceKzt: 12400,
-    passHoursLeft: 18,
     avatarInitials: "DY",
+  },
+  {
+    id: "u5",
+    name: "Aruzhan M.",
+    email: "aruzhan@hotshot.kz",
+    phone: "+7 707 222 33 44",
+    role: "player",
+    city: "Astana",
+    avatarInitials: "AM",
+  },
+  {
+    id: "u4",
+    name: "Erlan S.",
+    email: "staff@cyberdome.kz",
+    phone: "+7 701 900 80 70",
+    role: "clubAdmin",
+    city: "Astana",
+    avatarInitials: "ES",
+    clubId: "c1",
   },
   {
     id: "u2",
@@ -165,8 +157,6 @@ export const users: User[] = [
     phone: "+7 702 118 44 90",
     role: "owner",
     city: "Astana",
-    balanceKzt: 0,
-    passHoursLeft: 0,
     avatarInitials: "AK",
   },
   {
@@ -176,275 +166,199 @@ export const users: User[] = [
     phone: "+7 700 000 00 01",
     role: "admin",
     city: "Astana",
-    balanceKzt: 0,
-    passHoursLeft: 0,
     avatarInitials: "HS",
-  },
-];
-
-export const clubs: Club[] = [
-  {
-    id: "c1",
-    name: "CyberDome Astana",
-    city: "Astana",
-    address: "пр. Мангилик Ел 55, Astana",
-    rating: 4.8,
-    reviews: 412,
-    openFrom: "10:00",
-    openTo: "06:00",
-    fromPrice: 700,
-    cover: "linear-gradient(135deg, oklch(0.5 0.22 300), oklch(0.55 0.18 220))",
-    mapX: 32,
-    mapY: 38,
-    ownerId: "u2",
-    plan: "Pro",
-    trialEndsAt: "2026-05-01",
-    saasFeeKzt: 89000,
-    terminals: 60,
-    occupancy: 78,
-    status: "active",
-    photos: [],
-  },
-  {
-    id: "c2",
-    name: "NeonBox Esports",
-    city: "Astana",
-    address: "ул. Кабанбай батыра 13, Astana",
-    rating: 4.6,
-    reviews: 288,
-    openFrom: "24/7",
-    openTo: "24/7",
-    fromPrice: 550,
-    cover: "linear-gradient(135deg, oklch(0.52 0.2 200), oklch(0.45 0.2 320))",
-    mapX: 58,
-    mapY: 24,
-    ownerId: "u2",
-    plan: "Trial",
-    trialEndsAt: "2026-08-28",
-    saasFeeKzt: 49000,
-    terminals: 32,
-    occupancy: 54,
-    status: "trial",
-    photos: [],
-  },
-  {
-    id: "c3",
-    name: "Pixel Arena",
-    city: "Astana",
-    address: "ул. Сыганак 29, Astana",
-    rating: 4.4,
-    reviews: 173,
-    openFrom: "09:00",
-    openTo: "03:00",
-    fromPrice: 500,
-    cover: "linear-gradient(135deg, oklch(0.5 0.19 160), oklch(0.48 0.2 270))",
-    mapX: 72,
-    mapY: 62,
-    ownerId: "u2",
-    plan: "Start",
-    trialEndsAt: "2026-02-11",
-    saasFeeKzt: 29000,
-    terminals: 24,
-    occupancy: 41,
-    status: "active",
-    photos: [],
-  },
-  {
-    id: "c4",
-    name: "Colizeum Left Bank",
-    city: "Astana",
-    address: "ул. Достык 5, Astana",
-    rating: 4.7,
-    reviews: 502,
-    openFrom: "24/7",
-    openTo: "24/7",
-    fromPrice: 800,
-    cover: "linear-gradient(135deg, oklch(0.48 0.22 350), oklch(0.5 0.2 250))",
-    mapX: 20,
-    mapY: 70,
-    ownerId: "u2",
-    plan: "Network",
-    trialEndsAt: "2025-12-01",
-    saasFeeKzt: 149000,
-    terminals: 90,
-    occupancy: 86,
-    status: "active",
-    photos: [],
-  },
-  {
-    id: "c5",
-    name: "GG Station Karaganda",
-    city: "Karaganda",
-    address: "пр. Бухар Жырау 41, Karaganda",
-    rating: 0,
-    reviews: 0,
-    openFrom: "10:00",
-    openTo: "02:00",
-    fromPrice: 450,
-    cover: "linear-gradient(135deg, oklch(0.5 0.2 30), oklch(0.45 0.2 300))",
-    mapX: 44,
-    mapY: 50,
-    ownerId: "u2",
-    plan: "Trial",
-    trialEndsAt: "2026-09-05",
-    saasFeeKzt: 29000,
-    terminals: 28,
-    occupancy: 0,
-    status: "pending",
-    appliedAt: "2026-08-18",
-    photos: [],
-  },
-  {
-    id: "c6",
-    name: "Nomad Cyber Almaty",
-    city: "Almaty",
-    address: "ул. Абая 150, Almaty",
-    rating: 0,
-    reviews: 0,
-    openFrom: "24/7",
-    openTo: "24/7",
-    fromPrice: 900,
-    cover: "linear-gradient(135deg, oklch(0.5 0.22 260), oklch(0.5 0.18 180))",
-    mapX: 66,
-    mapY: 80,
-    ownerId: "u2",
-    plan: "Trial",
-    trialEndsAt: "2026-09-12",
-    saasFeeKzt: 49000,
-    terminals: 45,
-    occupancy: 0,
-    status: "pending",
-    appliedAt: "2026-08-20",
-    photos: [],
   },
 ];
 
 /** Demo credentials for the mocked multi-role login. */
 export const demoAccounts = [
   { email: "dastan@hotshot.kz", password: "player", role: "player" as Role },
+  { email: "staff@cyberdome.kz", password: "staff", role: "clubAdmin" as Role },
   { email: "owner@cyberdome.kz", password: "owner", role: "owner" as Role },
   { email: "admin@hotshot.play", password: "admin", role: "admin" as Role },
 ];
 
-export const pcZones: PcZone[] = [
-  { id: "z1", clubId: "c1", name: "Standard Hall", type: "Standard", seats: 24, pricePerHour: 700, specs: "i5-12400F · RTX 3060 · 165Hz" },
-  { id: "z2", clubId: "c1", name: "VIP Lounge", type: "VIP", seats: 10, pricePerHour: 1400, specs: "i7-13700K · RTX 4070 · 240Hz" },
-  { id: "z3", clubId: "c1", name: "PS5 Room", type: "PS5", seats: 6, pricePerHour: 1800, specs: "PS5 · 65\" OLED · DualSense" },
-  { id: "z4", clubId: "c2", name: "Main Floor", type: "Standard", seats: 20, pricePerHour: 550, specs: "i5-11400F · RTX 3050 · 144Hz" },
-  { id: "z5", clubId: "c2", name: "Bootcamp", type: "Bootcamp", seats: 5, pricePerHour: 1600, specs: "5 seats · coach board · private" },
-  { id: "z6", clubId: "c3", name: "Standard", type: "Standard", seats: 18, pricePerHour: 500, specs: "Ryzen 5 · RTX 3060 · 144Hz" },
-  { id: "z7", clubId: "c3", name: "VIP", type: "VIP", seats: 6, pricePerHour: 1200, specs: "Ryzen 7 · RTX 4070 · 240Hz" },
-  { id: "z8", clubId: "c4", name: "Arena Standard", type: "Standard", seats: 40, pricePerHour: 800, specs: "i5-13400F · RTX 4060 · 180Hz" },
-  { id: "z9", clubId: "c4", name: "VIP Cabins", type: "VIP", seats: 12, pricePerHour: 1700, specs: "i9 · RTX 4080 · 360Hz" },
-  { id: "z10", clubId: "c4", name: "PS5 Zone", type: "PS5", seats: 8, pricePerHour: 1900, specs: "PS5 Pro · 75\" 4K120" },
-];
+// ---------------- Clubs (Astana, real coordinates) ----------------
 
-/** Seats are generated from the zone seed so every zone has real machines. */
-export const seats: Seat[] = pcZones.flatMap((z) =>
-  Array.from({ length: z.seats }, (_, i) => ({
-    id: `${z.id}-s${i + 1}`,
-    zoneId: z.id,
-    clubId: z.clubId,
-    no: i + 1,
-    label: `${z.type === "PS5" ? "PS" : "PC"}-${String(i + 1).padStart(2, "0")}`,
-    specs: z.specs,
-    status: "ok" as SeatStatus,
-  })),
-);
-
-export const ZONE_TYPES: ZoneType[] = ["Standard", "VIP", "PS5", "Bootcamp"];
-
-export const bookings: Booking[] = [
+export const clubs: Club[] = [
   {
-    id: "b1",
-    code: "HP-4821",
-    userId: "u1",
-    clubId: "c1",
-    zoneId: "z2",
-    seatNo: 4,
-    date: "2026-08-21",
-    startTime: "19:00",
-    hours: 3,
-    totalKzt: 4200,
-    paidWith: "Kaspi QR",
-    status: "upcoming",
+    id: "c1",
+    name: "CyberDome Astana",
+    city: "Astana",
+    address: "пр. Мангилик Ел 55",
+    phone: "+7 7172 55 01 01",
+    lat: 51.0905,
+    lng: 71.3982,
+    rating: 4.8,
+    reviewsCount: 412,
+    openFrom: "10:00",
+    openTo: "06:00",
+    pricePerHour: 700,
+    totalSeats: 60,
+    specs: "i5-12400F · RTX 4060 · 165Hz",
+    description:
+      "Флагманский киберклуб на левом берегу: 60 машин, турнирная зона и кафе.",
+    cover: "linear-gradient(135deg, oklch(0.5 0.22 300), oklch(0.55 0.18 220))",
+    ownerId: "u2",
+    status: "active",
   },
   {
-    id: "b2",
-    code: "HP-1097",
-    userId: "u1",
-    clubId: "c3",
-    zoneId: "z6",
-    seatNo: 11,
-    date: "2026-08-14",
-    startTime: "14:00",
-    hours: 2,
-    totalKzt: 1000,
-    paidWith: "HotShot Pass" as unknown as PaymentMethod,
-    status: "completed",
+    id: "c2",
+    name: "NeonBox Esports",
+    city: "Astana",
+    address: "ул. Кабанбай батыра 13",
+    phone: "+7 7172 13 13 13",
+    lat: 51.1283,
+    lng: 71.4306,
+    rating: 4.6,
+    reviewsCount: 288,
+    openFrom: "00:00",
+    openTo: "24:00",
+    pricePerHour: 550,
+    totalSeats: 32,
+    specs: "i5-11400F · RTX 3050 · 144Hz",
+    description: "Круглосуточный клуб в центре с быстрым интернетом и стрим-кабиной.",
+    cover: "linear-gradient(135deg, oklch(0.52 0.2 200), oklch(0.45 0.2 320))",
+    ownerId: "u2",
+    status: "active",
+  },
+  {
+    id: "c3",
+    name: "Pixel Arena",
+    city: "Astana",
+    address: "ул. Сыганак 29",
+    phone: "+7 7172 29 29 29",
+    lat: 51.1235,
+    lng: 71.4045,
+    rating: 4.4,
+    reviewsCount: 173,
+    openFrom: "09:00",
+    openTo: "03:00",
+    pricePerHour: 500,
+    totalSeats: 24,
+    specs: "Ryzen 5 5600 · RTX 3060 · 144Hz",
+    description: "Уютный зал рядом с Байтереком — низкие цены и тихие утренние часы.",
+    cover: "linear-gradient(135deg, oklch(0.5 0.19 160), oklch(0.48 0.2 270))",
+    ownerId: "u2",
+    status: "active",
+  },
+  {
+    id: "c4",
+    name: "Colizeum Left Bank",
+    city: "Astana",
+    address: "ул. Достык 5",
+    phone: "+7 7172 05 05 05",
+    lat: 51.1185,
+    lng: 71.4668,
+    rating: 4.7,
+    reviewsCount: 502,
+    openFrom: "00:00",
+    openTo: "24:00",
+    pricePerHour: 800,
+    totalSeats: 90,
+    specs: "i5-13400F · RTX 4060 Ti · 180Hz",
+    description: "Крупнейший зал сети: 90 мест, киберспортивная сцена и дисконт ночью.",
+    cover: "linear-gradient(135deg, oklch(0.48 0.22 350), oklch(0.5 0.2 250))",
+    ownerId: "u2",
+    status: "active",
+  },
+  {
+    id: "c5",
+    name: "GG Station",
+    city: "Astana",
+    address: "пр. Тауелсиздик 21",
+    phone: "+7 7172 21 21 21",
+    lat: 51.1432,
+    lng: 71.4193,
+    rating: 0,
+    reviewsCount: 0,
+    openFrom: "10:00",
+    openTo: "02:00",
+    pricePerHour: 450,
+    totalSeats: 28,
+    specs: "Ryzen 5 · RTX 3050 · 144Hz",
+    description: "Новый клуб, заявка на подключение к платформе.",
+    cover: "linear-gradient(135deg, oklch(0.5 0.2 30), oklch(0.45 0.2 300))",
+    ownerId: "u2",
+    status: "pending",
+    appliedAt: "2026-08-18",
+  },
+  {
+    id: "c6",
+    name: "Nomad Cyber",
+    city: "Astana",
+    address: "ул. Туран 18",
+    phone: "+7 7172 18 18 18",
+    lat: 51.1045,
+    lng: 71.4415,
+    rating: 0,
+    reviewsCount: 0,
+    openFrom: "00:00",
+    openTo: "24:00",
+    pricePerHour: 600,
+    totalSeats: 45,
+    specs: "i5-12400F · RTX 3060 · 165Hz",
+    description: "Заявка от нового круглосуточного клуба на набережной.",
+    cover: "linear-gradient(135deg, oklch(0.5 0.22 260), oklch(0.5 0.18 180))",
+    ownerId: "u2",
+    status: "pending",
+    appliedAt: "2026-08-20",
   },
 ];
 
-/** Generates a short booking code such as "HP-8412". */
-export const makeBookingCode = () => `HP-${Math.floor(1000 + Math.random() * 8999)}`;
+// ---------------- Reviews ----------------
 
-export const subscriptions: Subscription[] = [
+export const reviews: Review[] = [
+  { id: "r1", clubId: "c1", userId: "u1", rating: 5, text: "Топовые машины, ноль задержек. Ресепшен принимает код за секунды.", createdAt: "2026-08-15 21:40" },
+  { id: "r2", clubId: "c1", userId: "u5", rating: 4, text: "Всё отлично, но вечером в пятницу шумно.", createdAt: "2026-08-12 18:02" },
+  { id: "r3", clubId: "c2", userId: "u5", rating: 5, text: "Работают 24/7 — спасли перед турниром.", createdAt: "2026-08-10 03:12" },
+  { id: "r4", clubId: "c3", userId: "u1", rating: 4, text: "Дёшево и спокойно, идеально для утренних каток.", createdAt: "2026-08-08 11:25" },
+  { id: "r5", clubId: "c4", userId: "u5", rating: 5, text: "Огромный зал, всегда есть свободные места.", createdAt: "2026-08-05 22:48" },
+];
+
+// ---------------- Subscriptions ----------------
+
+export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
+  { id: "sub3", hours: 3, priceKzt: 1699, dailyCap: 5 },
+  { id: "sub5", hours: 5, priceKzt: 2699, dailyCap: 5 },
+  { id: "sub30", hours: 30, priceKzt: 19999, dailyCap: 5, highlight: true },
+  { id: "subInf", hours: null, priceKzt: 39999, dailyCap: 5 },
+];
+
+export const userSubscriptions: UserSubscription[] = [
   {
     id: "s1",
     userId: "u1",
-    name: "HotShot Pass 20h",
-    scope: "universal",
-    hours: 20,
-    hoursLeft: 18,
-    priceKzt: 11900,
-    validUntil: "2026-09-20",
+    planId: "sub30",
+    hoursTotal: 30,
+    hoursLeft: 22,
+    startedAt: "2026-08-16",
+    validUntil: "2026-09-15",
     status: "active",
   },
 ];
 
-export const qrSessions: QrSession[] = [
-  {
-    id: "q1",
-    userId: "u1",
-    clubId: "c3",
-    bookingId: "b2",
-    code: "HSP-8842-KZ",
-    startedAt: "2026-08-14 14:02",
-    endedAt: "2026-08-14 16:04",
-    minutes: 122,
-    status: "closed",
-  },
+// ---------------- Bookings ----------------
+
+/** Generates a short booking code such as "HP-8412". */
+export const makeBookingCode = () => `HP-${Math.floor(1000 + Math.random() * 8999)}`;
+
+export const bookings: Booking[] = [
+  { id: "b1", code: "HP-4821", userId: "u1", clubId: "c1", date: "2026-08-26", startTime: "19:00", hours: 3, status: "upcoming" },
+  { id: "b2", code: "HP-1097", userId: "u5", clubId: "c1", date: "2026-08-26", startTime: "18:00", hours: 2, status: "upcoming" },
+  { id: "b3", code: "HP-3358", userId: "u1", clubId: "c2", date: "2026-08-26", startTime: "20:00", hours: 2, status: "active" },
+  { id: "b4", code: "HP-7743", userId: "u1", clubId: "c3", date: "2026-08-14", startTime: "14:00", hours: 2, status: "completed" },
+  { id: "b5", code: "HP-2210", userId: "u5", clubId: "c4", date: "2026-08-20", startTime: "16:00", hours: 4, status: "completed" },
 ];
+
+// ---------------- Payments ----------------
 
 export const payments: Payment[] = [
-  { id: "p1", userId: "u1", kind: "pass", label: "HotShot Pass 20h", amountKzt: 11900, method: "Kaspi Pay", createdAt: "2026-08-10 12:31", status: "succeeded" },
-  { id: "p2", userId: "u1", kind: "booking", label: "CyberDome · VIP · 3h", amountKzt: 4200, method: "Kaspi QR", createdAt: "2026-08-19 09:14", status: "succeeded" },
-  { id: "p3", userId: "u1", kind: "topup", label: "Wallet top-up", amountKzt: 10000, method: "Apple Pay", createdAt: "2026-08-01 21:02", status: "succeeded" },
-  { id: "p4", userId: "u2", kind: "saas", label: "CyberDome · Pro plan (Aug)", amountKzt: 89000, method: "Visa / Mastercard", createdAt: "2026-08-01 00:05", status: "succeeded" },
+  { id: "p1", userId: "u1", kind: "subscription", label: "30 Hours Package", amountKzt: 19999, method: "Kaspi Pay", createdAt: "2026-08-16 12:31", status: "succeeded" },
+  { id: "p2", userId: "u5", kind: "subscription", label: "5 Hours Package", amountKzt: 2699, method: "Apple Pay", createdAt: "2026-08-18 09:14", status: "succeeded" },
 ];
 
-export interface PassPlan {
-  id: string;
-  name: string;
-  scope: "universal" | "club";
-  hours: number;
-  priceKzt: number;
-  perks: string[];
-  highlight?: boolean;
-}
-
-export const passPlans: PassPlan[] = [
-  { id: "pp1", name: "Trial Pass", scope: "universal", hours: 5, priceKzt: 3490, perks: ["Any partner club", "Valid 14 days", "Standard zones"] },
-  { id: "pp2", name: "HotShot Pass 20h", scope: "universal", hours: 20, priceKzt: 11900, perks: ["Any partner club", "Valid 30 days", "Standard + VIP", "Priority seats"], highlight: true },
-  { id: "pp3", name: "Pro Pass 50h", scope: "universal", hours: 50, priceKzt: 26900, perks: ["Any partner club", "Valid 60 days", "All zones incl. PS5", "2 guest hours"] },
-  { id: "pp4", name: "CyberDome Club 10h", scope: "club", hours: 10, priceKzt: 5900, perks: ["CyberDome Astana only", "Valid 30 days", "Standard zone"] },
-];
-
-export const saasPlans = [
-  { id: "sp1", name: "Start", terminals: "up to 25 terminals", priceKzt: 29000, perks: ["Bookings & map listing", "Basic analytics", "QR check-in"] },
-  { id: "sp2", name: "Pro", terminals: "26–70 terminals", priceKzt: 89000, perks: ["Everything in Start", "Universal Pass payouts", "Revenue & occupancy analytics", "Promo tools"], highlight: true },
-  { id: "sp3", name: "Network", terminals: "70+ / multi-branch", priceKzt: 149000, perks: ["Everything in Pro", "Multi-branch dashboard", "API + priority support"] },
-];
+// ---------------- Analytics series (mock) ----------------
 
 export const revenueSeries = [
   { day: "Mon", revenue: 210000, bookings: 62 },
@@ -457,3 +371,9 @@ export const revenueSeries = [
 ];
 
 export const kzt = (n: number) => `${n.toLocaleString("ru-RU")} ₸`;
+
+/** Today's date as YYYY-MM-DD (local). */
+export const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};

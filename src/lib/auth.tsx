@@ -62,6 +62,7 @@ export function useAuth() {
 
 export const HOME_BY_ROLE: Record<Role, string> = {
   player: "/",
+  clubAdmin: "/staff",
   owner: "/partner",
   admin: "/admin",
 };
