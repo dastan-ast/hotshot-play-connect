@@ -1,9 +1,10 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "./auth";
+import { clubPatchToRow, fetchClubs } from "./clubs-api";
+import { supabase } from "@/integrations/supabase/client";
 import {
   SUBSCRIPTION_PLANS,
   bookings as seedBookings,
-  clubs as seedClubs,
   makeBookingCode,
   payments as seedPayments,
   reviews as seedReviews,
@@ -43,6 +44,8 @@ interface Store {
   completeBooking: (bookingId: string) => void;
   addReview: (clubId: string, rating: number, text: string) => void;
   setClubStatus: (clubId: string, status: ClubStatus) => void;
+  rejectClub: (clubId: string, reason: string) => void;
+  reloadClubs: () => Promise<void>;
   removeClub: (clubId: string) => void;
   updateClub: (clubId: string, patch: Partial<Club>) => void;
   findBookingByCode: (code: string) => Booking | undefined;
@@ -57,7 +60,6 @@ const now = () => new Date().toISOString().slice(0, 16).replace("T", " ");
 // Persist the mock DB in localStorage so bookings/subs survive page reloads (demo mode).
 const DB_KEY = "hsp-db-v1";
 interface PersistedDb {
-  clubs: Club[];
   bookings: Booking[];
   subscriptions: UserSubscription[];
   reviews: Review[];
@@ -66,7 +68,7 @@ interface PersistedDb {
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { user: authUser } = useAuth();
-  const [clubs, setClubs] = useState<Club[]>(seedClubs);
+  const [clubs, setClubs] = useState<Club[]>([]);
   const [allUsers] = useState<User[]>(seedUsers);
   const [bookings, setBookings] = useState<Booking[]>(seedBookings);
   const [subscriptions, setSubscriptions] = useState<UserSubscription[]>(seedSubs);
@@ -79,7 +81,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const raw = window.localStorage.getItem(DB_KEY);
       if (raw) {
         const db = JSON.parse(raw) as Partial<PersistedDb>;
-        if (Array.isArray(db.clubs)) setClubs(db.clubs);
         if (Array.isArray(db.bookings)) setBookings(db.bookings);
         if (Array.isArray(db.subscriptions)) setSubscriptions(db.subscriptions);
         if (Array.isArray(db.reviews)) setReviews(db.reviews);
@@ -93,13 +94,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated.current) return;
-    const db: PersistedDb = { clubs, bookings, subscriptions, reviews, payments };
+    const db: PersistedDb = { bookings, subscriptions, reviews, payments };
     try {
       window.localStorage.setItem(DB_KEY, JSON.stringify(db));
     } catch {
       // storage full — ignore in demo mode
     }
-  }, [clubs, bookings, subscriptions, reviews, payments]);
+  }, [bookings, subscriptions, reviews, payments]);
+
+  // Demo convenience: the seeded mock bookings/subscriptions belong to the demo
+  // player account, so re-point them at that account's real user id once it signs in.
+  const remapped = useRef<string | null>(null);
+  useEffect(() => {
+    if (!authUser || authUser.email !== "dastan@hotshot.kz" || remapped.current === authUser.id) return;
+    remapped.current = authUser.id;
+    const fix = <T extends { userId: string }>(rows: T[]) =>
+      rows.map((r) => (r.userId === "u1" ? { ...r, userId: authUser.id } : r));
+    setBookings((prev) => fix(prev));
+    setSubscriptions((prev) => fix(prev));
+    setPayments((prev) => fix(prev));
+    setReviews((prev) => fix(prev));
+  }, [authUser]);
+
+  const loadClubs = useCallback(async () => {
+    setClubs(await fetchClubs());
+  }, []);
+
+  useEffect(() => {
+    void loadClubs();
+  }, [loadClubs, authUser?.id]);
 
   const value = useMemo<Store>(() => {
     const activeSubFor = (userId: string) =>
@@ -208,20 +231,45 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             if (c.id !== clubId) return c;
             const count = c.reviewsCount + 1;
             const avg = (c.rating * c.reviewsCount + rating) / count;
-            return { ...c, reviewsCount: count, rating: Math.round(avg * 10) / 10 };
+            const next = { ...c, reviewsCount: count, rating: Math.round(avg * 10) / 10 };
+            void supabase
+              .from("clubs")
+              .update({ reviews_count: next.reviewsCount, rating: next.rating })
+              .eq("id", clubId);
+            return next;
           }),
         );
       },
-      setClubStatus: (clubId, status) =>
-        setClubs((prev) => prev.map((c) => (c.id === clubId ? { ...c, status } : c))),
-      removeClub: (clubId) => setClubs((prev) => prev.filter((c) => c.id !== clubId)),
-      updateClub: (clubId, patch) =>
-        setClubs((prev) => prev.map((c) => (c.id === clubId ? { ...c, ...patch } : c))),
+      setClubStatus: (clubId, status) => {
+        setClubs((prev) =>
+          prev.map((c) => {
+            if (c.id !== clubId) return c;
+            const { rejectionReason: _dropped, ...rest } = c;
+            return { ...rest, status };
+          }),
+        );
+        void supabase.from("clubs").update({ status, rejection_reason: null }).eq("id", clubId);
+      },
+      rejectClub: (clubId, reason) => {
+        setClubs((prev) =>
+          prev.map((c) => (c.id === clubId ? { ...c, status: "rejected" as ClubStatus, rejectionReason: reason } : c)),
+        );
+        void supabase.from("clubs").update({ status: "rejected", rejection_reason: reason }).eq("id", clubId);
+      },
+      reloadClubs: loadClubs,
+      removeClub: (clubId) => {
+        setClubs((prev) => prev.filter((c) => c.id !== clubId));
+        void supabase.from("clubs").delete().eq("id", clubId);
+      },
+      updateClub: (clubId, patch) => {
+        setClubs((prev) => prev.map((c) => (c.id === clubId ? { ...c, ...patch } : c)));
+        void supabase.from("clubs").update(clubPatchToRow(patch)).eq("id", clubId);
+      },
       findBookingByCode: (code) =>
         bookings.find((b) => b.code.toUpperCase() === code.trim().toUpperCase()),
       userName: (userId) => allUsers.find((u) => u.id === userId)?.name ?? "—",
     };
-  }, [authUser, clubs, allUsers, bookings, subscriptions, reviews, payments]);
+  }, [authUser, clubs, allUsers, bookings, subscriptions, reviews, payments, loadClubs]);
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;
 }

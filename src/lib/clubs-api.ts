@@ -1,0 +1,80 @@
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+import type { Club, ClubStatus } from "./mock-db";
+
+type ClubUpdate = Database["public"]["Tables"]["clubs"]["Update"];
+
+type Row = {
+  id: string;
+  name: string;
+  city: string;
+  address: string;
+  phone: string;
+  lat: number;
+  lng: number;
+  rating: number;
+  reviews_count: number;
+  open_from: string;
+  open_to: string;
+  price_per_hour: number;
+  total_seats: number;
+  specs: string;
+  description: string;
+  cover: string;
+  owner_id: string | null;
+  status: string;
+  rejection_reason: string | null;
+  applied_at: string;
+};
+
+export const rowToClub = (r: Row): Club => ({
+  id: r.id,
+  name: r.name,
+  city: r.city,
+  address: r.address,
+  phone: r.phone,
+  lat: Number(r.lat),
+  lng: Number(r.lng),
+  rating: Number(r.rating),
+  reviewsCount: r.reviews_count,
+  openFrom: r.open_from,
+  openTo: r.open_to,
+  pricePerHour: r.price_per_hour,
+  totalSeats: r.total_seats,
+  specs: r.specs,
+  description: r.description,
+  cover: r.cover,
+  ownerId: r.owner_id ?? "",
+  status: r.status as ClubStatus,
+  appliedAt: r.applied_at?.slice(0, 10),
+  ...(r.rejection_reason ? { rejectionReason: r.rejection_reason } : {}),
+});
+
+export async function fetchClubs(): Promise<Club[]> {
+  const { data, error } = await supabase.from("clubs").select("*").order("created_at", { ascending: true });
+  if (error) {
+    console.error("fetchClubs", error);
+    return [];
+  }
+  return ((data ?? []) as unknown as Row[]).map(rowToClub);
+}
+
+export const clubPatchToRow = (patch: Partial<Club>): ClubUpdate => {
+  const row: ClubUpdate = {};
+  if (patch.name !== undefined) row.name = patch.name;
+  if (patch.city !== undefined) row.city = patch.city;
+  if (patch.address !== undefined) row.address = patch.address;
+  if (patch.phone !== undefined) row.phone = patch.phone;
+  if (patch.openFrom !== undefined) row.open_from = patch.openFrom;
+  if (patch.openTo !== undefined) row.open_to = patch.openTo;
+  if (patch.pricePerHour !== undefined) row.price_per_hour = patch.pricePerHour;
+  if (patch.totalSeats !== undefined) row.total_seats = patch.totalSeats;
+  if (patch.specs !== undefined) row.specs = patch.specs;
+  if (patch.description !== undefined) row.description = patch.description;
+  if (patch.cover !== undefined) row.cover = patch.cover;
+  if (patch.rating !== undefined) row.rating = patch.rating;
+  if (patch.reviewsCount !== undefined) row.reviews_count = patch.reviewsCount;
+  if (patch.status !== undefined) row.status = patch.status;
+  if (patch.rejectionReason !== undefined) row.rejection_reason = patch.rejectionReason;
+  return row;
+};

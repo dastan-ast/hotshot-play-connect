@@ -1,4 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { DbRole } from "@/lib/auth";
+import { Input } from "@/components/ui/input";
 import { Building2, ShieldCheck, Ticket, Users, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -26,6 +30,7 @@ export const Route = createFileRoute("/admin")({
 const STATUS_VARIANT: Record<ClubStatus, "default" | "secondary" | "outline" | "destructive"> = {
   pending: "secondary",
   active: "default",
+  rejected: "outline",
   suspended: "destructive",
 };
 
@@ -44,9 +49,52 @@ function AdminPage() {
   );
 }
 
+interface PlatformUser {
+  id: string;
+  name: string;
+  email: string;
+  city: string;
+  role: Role;
+}
+
+const ROLE_LABEL: Record<DbRole, Role> = {
+  player: "player",
+  club_admin: "clubAdmin",
+  owner: "owner",
+  admin: "admin",
+};
+
 function AdminInner() {
-  const { clubs, allUsers, payments, setClubStatus, removeClub, userName } = useStore();
+  const { clubs, payments, setClubStatus, rejectClub, reloadClubs } = useStore();
   const { t } = useI18n();
+  const [people, setPeople] = useState<PlatformUser[]>([]);
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    void reloadClubs();
+  }, [reloadClubs]);
+
+  useEffect(() => {
+    void (async () => {
+      const [{ data: profiles }, { data: roles }] = await Promise.all([
+        supabase.from("profiles").select("id, name, email, city"),
+        supabase.from("user_roles").select("user_id, role"),
+      ]);
+      const roleOf = new Map((roles ?? []).map((r) => [r.user_id, r.role as DbRole]));
+      setPeople(
+        (profiles ?? []).map((p) => ({
+          id: p.id,
+          name: p.name || p.email,
+          email: p.email,
+          city: p.city,
+          role: ROLE_LABEL[roleOf.get(p.id) ?? "player"],
+        })),
+      );
+    })();
+  }, [clubs]);
+
+  const allUsers = people;
+  const userName = (id: string) => people.find((p) => p.id === id)?.name ?? "—";
 
   const pending = clubs.filter((c) => c.status === "pending");
   const activeCount = clubs.filter((c) => c.status === "active").length;
@@ -149,27 +197,35 @@ function AdminInner() {
                         </div>
                         <Badge variant="secondary">{t("status.pending")}</Badge>
                       </div>
-                      <div className="mt-3 flex gap-2">
-                        <Button
-                          size="sm"
-                          className="neon-glow"
-                          onClick={() => {
-                            setClubStatus(club.id, "active");
-                            toast.success(`${club.name} ${t("admin.approved")}`);
-                          }}
-                        >
-                          {t("admin.approve")}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => {
-                            removeClub(club.id);
-                            toast.success(`${club.name} — ${t("admin.rejected")}`);
-                          }}
-                        >
-                          {t("admin.reject")}
-                        </Button>
+                      <div className="mt-3 space-y-2">
+                        <Input
+                          value={reasons[club.id] ?? ""}
+                          onChange={(e) => setReasons((r) => ({ ...r, [club.id]: e.target.value }))}
+                          placeholder={t("admin.rejectReasonPlaceholder")}
+                          aria-label={t("admin.rejectReason")}
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="neon-glow"
+                            onClick={() => {
+                              setClubStatus(club.id, "active");
+                              toast.success(`${club.name} — ${t("admin.approved")}`);
+                            }}
+                          >
+                            {t("admin.approve")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              rejectClub(club.id, (reasons[club.id] ?? "").trim() || t("admin.rejectReason"));
+                              toast.success(`${club.name} — ${t("admin.rejected")}`);
+                            }}
+                          >
+                            {t("admin.reject")}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -219,7 +275,7 @@ function AdminInner() {
                           {t("admin.suspend")}
                         </Button>
                       )}
-                      {club.status === "suspended" && (
+                      {(club.status === "suspended" || club.status === "rejected") && (
                         <Button
                           size="sm"
                           variant="ghost"
@@ -255,7 +311,7 @@ function AdminInner() {
                   <tr key={u.id} className="border-b border-border/50 last:border-0">
                     <td className="p-3">
                       <span className="mr-2 inline-grid size-7 place-items-center rounded-lg bg-primary/20 align-middle text-[10px] font-bold">
-                        {u.avatarInitials}
+                        {u.name.slice(0, 2).toUpperCase()}
                       </span>
                       {u.name}
                     </td>

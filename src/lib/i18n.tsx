@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { authEn, authKk, authRu } from "./i18n-auth";
 
 export const LANGS = [
   { code: "ru", label: "Рус" },
@@ -685,7 +686,11 @@ const kk: Dict = {
   "pay.with": "арқылы",
 };
 
-const DICTS: Record<Lang, Dict> = { en, ru, kk };
+const DICTS: Record<Lang, Dict> = {
+  en: { ...en, ...authEn },
+  ru: { ...ru, ...authRu },
+  kk: { ...kk, ...authKk },
+};
 
 const LOCALES: Record<Lang, string> = { ru: "ru-RU", kk: "kk-KZ", en: "en-GB" };
 

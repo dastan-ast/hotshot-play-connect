@@ -19,7 +19,7 @@ export interface User {
   clubId?: string;
 }
 
-export type ClubStatus = "pending" | "active" | "suspended";
+export type ClubStatus = "pending" | "active" | "rejected" | "suspended";
 
 export interface Club {
   id: string;
@@ -42,6 +42,7 @@ export interface Club {
   ownerId: string;
   status: ClubStatus;
   appliedAt?: string;
+  rejectionReason?: string;
 }
 
 export interface Review {
