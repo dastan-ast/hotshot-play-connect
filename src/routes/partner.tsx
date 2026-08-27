@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { CalendarClock, Gift, LayoutDashboard, Settings, Star, Wallet } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CalendarClock, Clock, Gift, LayoutDashboard, Settings, Star, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useStore } from "@/lib/store";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { kzt, revenueSeries } from "@/lib/mock-db";
@@ -37,7 +38,7 @@ function PartnerPage() {
 
 function PartnerInner() {
   const { user } = useAuth();
-  const { clubs, bookings, reviews, userName, updateClub } = useStore();
+  const { clubs, bookings, reviews, userName, updateClub, reloadClubs } = useStore();
   const { t } = useI18n();
 
   const club = clubs.find((c) => c.ownerId === user?.id);
@@ -51,7 +52,28 @@ function PartnerInner() {
     openTo: club?.openTo ?? "02:00",
   }));
 
-  if (!club) return null;
+  useEffect(() => {
+    if (!club) return;
+    setForm({
+      name: club.name,
+      address: club.address,
+      phone: club.phone,
+      pricePerHour: club.pricePerHour,
+      totalSeats: club.totalSeats,
+      openFrom: club.openFrom,
+      openTo: club.openTo,
+    });
+  }, [club?.id]);
+
+  if (!club) {
+    return (
+      <div className="neon-panel mx-auto max-w-md p-8 text-center">
+        <Clock className="mx-auto size-6 text-primary" />
+        <h1 className="mt-3 text-lg font-bold">{t("club.pendingTitle")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("club.pendingText")}</p>
+      </div>
+    );
+  }
 
   const clubBookings = bookings.filter((b) => b.clubId === club.id && b.status !== "cancelled");
   const clubReviews = reviews.filter((r) => r.clubId === club.id);
@@ -79,6 +101,34 @@ function PartnerInner() {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">{t("partner.subtitle")}</p>
       </div>
+
+      {club.status !== "active" && (
+        <div className="flex items-start gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-4 text-sm">
+          <Clock className="mt-0.5 size-5 shrink-0 text-primary" />
+          <div className="space-y-2">
+            <p className="font-semibold">
+              {club.status === "rejected" ? t("club.rejectedTitle") : t("club.pendingTitle")}
+            </p>
+            <p className="text-muted-foreground">
+              {club.status === "rejected"
+                ? t("club.rejectedText", { reason: club.rejectionReason ?? "—" })
+                : t("club.pendingText")}
+            </p>
+            {club.status === "rejected" && (
+              <Button
+                size="sm"
+                onClick={async () => {
+                  await supabase.rpc("resubmit_club", { _club_id: club.id });
+                  await reloadClubs();
+                  toast.success(t("club.resubmitted"));
+                }}
+              >
+                {t("club.resubmit")}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="flex items-start gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-4 text-sm">
         <Gift className="mt-0.5 size-5 shrink-0 text-accent" />
