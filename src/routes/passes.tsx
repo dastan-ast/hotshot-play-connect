@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { SUBSCRIPTION_PLANS, kzt, type SubscriptionPlan } from "@/lib/mock-db";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { PaymentDialog } from "@/components/PaymentDialog";
+import { KaspiPaymentDialog } from "@/components/KaspiPaymentDialog";
 import { Progress } from "@/components/ui/progress";
 
 export const Route = createFileRoute("/passes")({
@@ -29,12 +29,13 @@ export const Route = createFileRoute("/passes")({
 
 function PassesPage() {
   const { user, role } = useAuth();
-  const { activeSubFor, buySubscription } = useStore();
+  const { activeSubFor, latestPaymentFor, submitKaspiReceipt } = useStore();
   const { t } = useI18n();
   const navigate = useNavigate();
   const [payPlan, setPayPlan] = useState<SubscriptionPlan | null>(null);
 
   const sub = user && role === "player" ? activeSubFor(user.id) : undefined;
+  const lastPayment = user ? latestPaymentFor(user.id) : undefined;
 
   const startBuy = (plan: SubscriptionPlan) => {
     if (!user || role !== "player") {
@@ -92,6 +93,22 @@ function PassesPage() {
         </section>
       )}
 
+      {role === "player" && lastPayment?.status === "pending" && (
+        <section className="neon-panel border-accent/50 p-5 text-sm">
+          <p className="font-semibold text-accent">{t("kaspi.pendingTitle")}</p>
+          <p className="mt-1 text-muted-foreground">
+            {t("kaspi.pendingText")} · {t("kaspi.receipt")}: <b className="text-foreground">{lastPayment.receiptNumber}</b>
+          </p>
+        </section>
+      )}
+
+      {role === "player" && lastPayment?.status === "rejected" && (
+        <section className="neon-panel border-destructive/50 p-5 text-sm">
+          <p className="font-semibold text-destructive">{t("kaspi.rejectedTitle")}</p>
+          <p className="mt-1 text-muted-foreground">{lastPayment.rejectionReason || t("kaspi.rejectedText")}</p>
+        </section>
+      )}
+
       {/* Plans */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {SUBSCRIPTION_PLANS.map((plan) => (
@@ -140,19 +157,23 @@ function PassesPage() {
       </section>
 
       {payPlan && (
-        <PaymentDialog
+        <KaspiPaymentDialog
           open={!!payPlan}
           onOpenChange={(open) => !open && setPayPlan(null)}
           title={t(`plan.${payPlan.id}.name`)}
           amount={payPlan.priceKzt}
-          onConfirm={async (method) => {
-            const ok = await buySubscription(payPlan.id, method);
-            setPayPlan(null);
-            if (ok) toast.success(t("passes.bought"));
-            else toast.error(t("passes.buyError"));
+          onSubmit={async (receiptNumber) => {
+            const res = await submitKaspiReceipt(payPlan.id, receiptNumber);
+            if (res.ok) {
+              setPayPlan(null);
+              toast.success(t("kaspi.submitted"));
+            } else {
+              toast.error(res.error === "alreadyPending" ? t("kaspi.alreadyPending") : t("kaspi.failed"));
+            }
           }}
         />
       )}
+
     </div>
   );
 }
