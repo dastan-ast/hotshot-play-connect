@@ -176,6 +176,11 @@ export type Database = {
           kind: string
           label: string
           method: string
+          plan_id: string | null
+          receipt_number: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           status: string
           user_id: string
         }
@@ -186,6 +191,11 @@ export type Database = {
           kind?: string
           label?: string
           method?: string
+          plan_id?: string | null
+          receipt_number?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string
           user_id: string
         }
@@ -196,6 +206,11 @@ export type Database = {
           kind?: string
           label?: string
           method?: string
+          plan_id?: string | null
+          receipt_number?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string
           user_id?: string
         }
