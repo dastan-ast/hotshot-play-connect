@@ -320,9 +320,9 @@ export const reviews: Review[] = [
 // ---------------- Subscriptions ----------------
 
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
-  { id: "sub3", hours: 3, priceKzt: 1699, dailyCap: 5 },
-  { id: "sub5", hours: 5, priceKzt: 2699, dailyCap: 5 },
-  { id: "sub30", hours: 30, priceKzt: 19999, dailyCap: 5, highlight: true },
+  { id: "sub3", hours: 11, priceKzt: 7990, dailyCap: 5 },
+  { id: "sub5", hours: 19, priceKzt: 13990, dailyCap: 5 },
+  { id: "sub30", hours: 27, priceKzt: 18990, dailyCap: 5, highlight: true },
   { id: "subInf", hours: null, priceKzt: 39999, dailyCap: 5 },
 ];
 
