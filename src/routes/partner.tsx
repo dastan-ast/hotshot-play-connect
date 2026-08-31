@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { CalendarClock, Clock, Gift, LayoutDashboard, Settings, Star, Wallet } from "lucide-react";
+import { CalendarClock, Clock, Gift, LayoutDashboard, Settings, Star, Trash2, UserPlus, Users, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { kzt, revenueSeries } from "@/lib/mock-db";
+import { kzt, last7Days } from "@/lib/mock-db";
+import { addClubStaff, listClubStaff, removeClubStaff, type StaffMember } from "@/lib/staff.functions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +39,7 @@ function PartnerPage() {
 
 function PartnerInner() {
   const { user } = useAuth();
-  const { clubs, bookings, reviews, userName, updateClub, reloadClubs } = useStore();
+  const { clubs, bookings, reviews, updateClub, reloadClubs } = useStore();
   const { t } = useI18n();
 
   const club = clubs.find((c) => c.ownerId === user?.id);
@@ -77,14 +78,21 @@ function PartnerInner() {
 
   const clubBookings = bookings.filter((b) => b.clubId === club.id && b.status !== "cancelled");
   const clubReviews = reviews.filter((r) => r.clubId === club.id);
-  const factor = club.totalSeats / 60;
-  const series = revenueSeries.map((d) => ({
-    ...d,
-    revenue: Math.round(d.revenue * factor),
-    bookings: Math.round(d.bookings * factor),
-  }));
-  const revenue7d = series.reduce((s, d) => s + d.revenue, 0);
-  const bookings7d = series.reduce((s, d) => s + d.bookings, 0);
+  const days = last7Days();
+  const series = days.map((d) => {
+    const list = clubBookings.filter((b) => b.date === d);
+    return {
+      day: d.slice(5),
+      revenue: list.reduce((sum, b) => sum + b.hours * club.pricePerHour, 0),
+      bookings: list.length,
+    };
+  });
+  const revenue7d = series.reduce((sum, d) => sum + d.revenue, 0);
+  const bookings7d = series.reduce((sum, d) => sum + d.bookings, 0);
+  const month = new Date().toISOString().slice(0, 7);
+  const revenueMonth = clubBookings
+    .filter((b) => b.date.startsWith(month))
+    .reduce((sum, b) => sum + b.hours * club.pricePerHour, 0);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({
@@ -141,6 +149,9 @@ function PartnerInner() {
           <TabsTrigger value="reviews">
             {t("partner.tab.reviews")} ({clubReviews.length})
           </TabsTrigger>
+          <TabsTrigger value="staff">
+            <Users className="size-4" /> {t("partner.tab.staff")}
+          </TabsTrigger>
           <TabsTrigger value="settings">
             <Settings className="size-4" /> {t("partner.tab.settings")}
           </TabsTrigger>
@@ -151,6 +162,7 @@ function PartnerInner() {
             {[
               { icon: Wallet, label: t("partner.kpi.revenue"), value: kzt(revenue7d) },
               { icon: CalendarClock, label: t("partner.kpi.bookings"), value: String(bookings7d) },
+              { icon: Wallet, label: t("partner.kpi.month"), value: kzt(revenueMonth) },
               { icon: Star, label: t("partner.kpi.rating"), value: club.rating.toFixed(1) },
               { icon: LayoutDashboard, label: t("partner.kpi.seats"), value: String(club.totalSeats) },
             ].map((kpi) => (
@@ -203,11 +215,11 @@ function PartnerInner() {
           {clubReviews.map((r) => (
             <div key={r.id} className="neon-panel flex items-start gap-3 p-4">
               <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/20 text-xs font-bold">
-                {userName(r.userId).slice(0, 2).toUpperCase()}
+                {(r.authorName || "—").slice(0, 2).toUpperCase()}
               </span>
               <div className="flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold">{userName(r.userId)}</p>
+                  <p className="text-sm font-semibold">{r.authorName || "—"}</p>
                   <span className="flex items-center gap-0.5">
                     {[1, 2, 3, 4, 5].map((i) => (
                       <Star
@@ -222,6 +234,10 @@ function PartnerInner() {
               </div>
             </div>
           ))}
+        </TabsContent>
+
+        <TabsContent value="staff" className="mt-4">
+          <StaffManager clubId={club.id} />
         </TabsContent>
 
         <TabsContent value="settings" className="mt-4">
@@ -268,6 +284,92 @@ function PartnerInner() {
           </div>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function StaffManager({ clubId }: { clubId: string }) {
+  const { t } = useI18n();
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    try {
+      setStaff(await listClubStaff({ data: { clubId } }));
+    } catch {
+      setStaff([]);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clubId]);
+
+  return (
+    <div className="neon-panel max-w-2xl space-y-4 p-5 sm:p-6">
+      <p className="text-sm text-muted-foreground">{t("partner.staffHint")}</p>
+      <div className="flex flex-wrap gap-2">
+        <Input
+          className="max-w-xs"
+          type="email"
+          value={email}
+          placeholder="staff@example.kz"
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <Button
+          disabled={busy || !email.trim()}
+          className="neon-glow"
+          onClick={async () => {
+            setBusy(true);
+            try {
+              const res = await addClubStaff({ data: { clubId, email } });
+              if (!res.ok) {
+                toast.error(res.error === "notFound" ? t("partner.staffNotFound") : t("partner.staffError"));
+              } else {
+                setEmail("");
+                toast.success(t("partner.staffAdded"));
+                await load();
+              }
+            } catch {
+              toast.error(t("partner.staffError"));
+            }
+            setBusy(false);
+          }}
+        >
+          <UserPlus className="size-4" /> {t("partner.staffAdd")}
+        </Button>
+      </div>
+
+      {staff.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t("partner.staffEmpty")}</p>
+      ) : (
+        <ul className="space-y-2">
+          {staff.map((m) => (
+            <li key={m.id} className="flex items-center gap-3 rounded-xl border border-border bg-card/60 p-3">
+              <span className="grid size-9 place-items-center rounded-lg bg-primary/20 text-xs font-bold">
+                {m.name.slice(0, 2).toUpperCase()}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{m.name}</p>
+                <p className="truncate text-xs text-muted-foreground">{m.email}</p>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={async () => {
+                  await removeClubStaff({ data: { clubId, userId: m.userId } });
+                  toast.success(t("partner.staffRemoved"));
+                  await load();
+                }}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

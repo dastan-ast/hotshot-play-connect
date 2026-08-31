@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
-import { kzt, revenueSeries, type ClubStatus, type Role } from "@/lib/mock-db";
+import { kzt, last7Days, type ClubStatus, type Role } from "@/lib/mock-db";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -96,6 +96,13 @@ function AdminInner() {
   const allUsers = people;
   const userName = (id: string) => people.find((p) => p.id === id)?.name ?? "—";
 
+  const gmvSeries = last7Days().map((d) => ({
+    day: d.slice(5),
+    revenue: payments
+      .filter((p) => p.status === "succeeded" && p.createdAt.slice(0, 10) === d)
+      .reduce((sum, p) => sum + p.amountKzt, 0),
+  }));
+
   const pending = clubs.filter((c) => c.status === "pending");
   const activeCount = clubs.filter((c) => c.status === "active").length;
   const gmv = payments.filter((p) => p.status === "succeeded").reduce((s, p) => s + p.amountKzt, 0);
@@ -145,7 +152,7 @@ function AdminInner() {
             <p className="text-sm font-semibold">{t("admin.chart")}</p>
             <div className="mt-4 h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={revenueSeries}>
+                <AreaChart data={gmvSeries}>
                   <defs>
                     <linearGradient id="adminRev" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.5} />

@@ -52,7 +52,7 @@ function Stars({ value, size = "size-4" }: { value: number; size?: string }) {
 
 function ClubPage() {
   const { clubId } = Route.useParams();
-  const { clubs, reviews, userName } = useStore();
+  const { clubs, reviews } = useStore();
   const { t } = useI18n();
   const club = clubs.find((c) => c.id === clubId);
 
@@ -128,10 +128,10 @@ function ClubPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="grid size-8 place-items-center rounded-lg bg-primary/20 text-xs font-bold">
-                      {userName(r.userId).slice(0, 2).toUpperCase()}
+                      {(r.authorName || "—").slice(0, 2).toUpperCase()}
                     </span>
                     <div>
-                      <p className="text-sm font-semibold">{userName(r.userId)}</p>
+                      <p className="text-sm font-semibold">{r.authorName || "—"}</p>
                       <p className="text-[11px] text-muted-foreground">{r.createdAt}</p>
                     </div>
                   </div>
@@ -233,9 +233,9 @@ function BookingCard({ club }: { club: Club }) {
   const maxHours = Math.max(1, Math.min(5, cap - usedToday));
   const hoursLeftAfter = sub && sub.hoursLeft !== null ? sub.hoursLeft - hours : null;
 
-  const book = () => {
+  const book = async () => {
     if (!time) return;
-    const res = bookSlot({ clubId: club.id, date, startTime: time, hours });
+    const res = await bookSlot({ clubId: club.id, date, startTime: time, hours });
     if (res.ok) {
       setDone(res.booking);
     } else if (res.error === "dailyCap") {

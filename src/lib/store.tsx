@@ -1,128 +1,188 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "./auth";
 import { clubPatchToRow, fetchClubs } from "./clubs-api";
 import { supabase } from "@/integrations/supabase/client";
 import {
   SUBSCRIPTION_PLANS,
-  bookings as seedBookings,
   makeBookingCode,
-  payments as seedPayments,
-  reviews as seedReviews,
   todayStr,
-  userSubscriptions as seedSubs,
-  users as seedUsers,
   type Booking,
   type Club,
   type ClubStatus,
   type Payment,
   type PaymentMethod,
   type Review,
-  type User,
   type UserSubscription,
 } from "./mock-db";
 
-export type BookError = "noSub" | "notEnoughHours" | "dailyCap";
+export type BookError = "noSub" | "notEnoughHours" | "dailyCap" | "failed";
 
 interface Store {
   clubs: Club[];
-  allUsers: User[];
   bookings: Booking[];
   subscriptions: UserSubscription[];
   reviews: Review[];
   payments: Payment[];
+  loading: boolean;
   activeSubFor: (userId: string) => UserSubscription | undefined;
   usedHoursOn: (userId: string, date: string) => number;
-  buySubscription: (planId: string, method: PaymentMethod) => void;
+  buySubscription: (planId: string, method: PaymentMethod) => Promise<boolean>;
   bookSlot: (input: {
     clubId: string;
     date: string;
     startTime: string;
     hours: number;
-  }) => { ok: true; booking: Booking } | { ok: false; error: BookError };
-  cancelBooking: (bookingId: string) => void;
-  checkInBooking: (bookingId: string) => void;
-  completeBooking: (bookingId: string) => void;
-  addReview: (clubId: string, rating: number, text: string) => void;
-  setClubStatus: (clubId: string, status: ClubStatus) => void;
-  rejectClub: (clubId: string, reason: string) => void;
+  }) => Promise<{ ok: true; booking: Booking } | { ok: false; error: BookError }>;
+  cancelBooking: (bookingId: string) => Promise<void>;
+  checkInBooking: (bookingId: string) => Promise<void>;
+  completeBooking: (bookingId: string) => Promise<void>;
+  addReview: (clubId: string, rating: number, text: string) => Promise<void>;
+  setClubStatus: (clubId: string, status: ClubStatus) => Promise<void>;
+  rejectClub: (clubId: string, reason: string) => Promise<void>;
   reloadClubs: () => Promise<void>;
-  removeClub: (clubId: string) => void;
-  updateClub: (clubId: string, patch: Partial<Club>) => void;
+  reloadData: () => Promise<void>;
+  removeClub: (clubId: string) => Promise<void>;
+  updateClub: (clubId: string, patch: Partial<Club>) => Promise<void>;
   findBookingByCode: (code: string) => Booking | undefined;
-  userName: (userId: string) => string;
 }
 
 const StoreCtx = createContext<Store | null>(null);
 
-const id = (p: string) => `${p}${Math.random().toString(36).slice(2, 8)}`;
-const now = () => new Date().toISOString().slice(0, 16).replace("T", " ");
+type BookingRow = {
+  id: string;
+  code: string;
+  user_id: string;
+  club_id: string;
+  player_name: string;
+  player_phone: string;
+  booking_date: string;
+  start_time: string;
+  hours: number;
+  status: string;
+};
 
-// Persist the mock DB in localStorage so bookings/subs survive page reloads (demo mode).
-const DB_KEY = "hsp-db-v1";
-interface PersistedDb {
-  bookings: Booking[];
-  subscriptions: UserSubscription[];
-  reviews: Review[];
-  payments: Payment[];
-}
+type ReviewRow = {
+  id: string;
+  club_id: string;
+  user_id: string;
+  author_name: string;
+  rating: number;
+  text: string;
+  created_at: string;
+};
+
+type SubRow = {
+  id: string;
+  user_id: string;
+  plan_id: string;
+  hours_total: number | null;
+  hours_left: number | null;
+  started_at: string;
+  valid_until: string;
+  status: string;
+};
+
+type PaymentRow = {
+  id: string;
+  user_id: string;
+  kind: string;
+  label: string;
+  amount_kzt: number;
+  method: string;
+  status: string;
+  created_at: string;
+};
+
+const toBooking = (r: BookingRow): Booking => ({
+  id: r.id,
+  code: r.code,
+  userId: r.user_id,
+  clubId: r.club_id,
+  playerName: r.player_name,
+  playerPhone: r.player_phone,
+  date: r.booking_date,
+  startTime: r.start_time,
+  hours: r.hours,
+  status: r.status as Booking["status"],
+});
+
+const toReview = (r: ReviewRow): Review => ({
+  id: r.id,
+  clubId: r.club_id,
+  userId: r.user_id,
+  authorName: r.author_name,
+  rating: r.rating,
+  text: r.text,
+  createdAt: r.created_at.slice(0, 16).replace("T", " "),
+});
+
+const toSub = (r: SubRow): UserSubscription => ({
+  id: r.id,
+  userId: r.user_id,
+  planId: r.plan_id,
+  hoursTotal: r.hours_total,
+  hoursLeft: r.hours_left,
+  startedAt: r.started_at,
+  validUntil: r.valid_until,
+  status: r.status as UserSubscription["status"],
+});
+
+const toPayment = (r: PaymentRow): Payment => ({
+  id: r.id,
+  userId: r.user_id,
+  kind: "subscription",
+  label: r.label,
+  amountKzt: r.amount_kzt,
+  method: r.method as PaymentMethod,
+  createdAt: r.created_at.slice(0, 16).replace("T", " "),
+  status: r.status as Payment["status"],
+});
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { user: authUser } = useAuth();
   const [clubs, setClubs] = useState<Club[]>([]);
-  const [allUsers] = useState<User[]>(seedUsers);
-  const [bookings, setBookings] = useState<Booking[]>(seedBookings);
-  const [subscriptions, setSubscriptions] = useState<UserSubscription[]>(seedSubs);
-  const [reviews, setReviews] = useState<Review[]>(seedReviews);
-  const [payments, setPayments] = useState<Payment[]>(seedPayments);
-  const hydrated = useRef(false);
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(DB_KEY);
-      if (raw) {
-        const db = JSON.parse(raw) as Partial<PersistedDb>;
-        if (Array.isArray(db.bookings)) setBookings(db.bookings);
-        if (Array.isArray(db.subscriptions)) setSubscriptions(db.subscriptions);
-        if (Array.isArray(db.reviews)) setReviews(db.reviews);
-        if (Array.isArray(db.payments)) setPayments(db.payments);
-      }
-    } catch {
-      // corrupted demo state — fall back to seeds
-    }
-    hydrated.current = true;
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated.current) return;
-    const db: PersistedDb = { bookings, subscriptions, reviews, payments };
-    try {
-      window.localStorage.setItem(DB_KEY, JSON.stringify(db));
-    } catch {
-      // storage full — ignore in demo mode
-    }
-  }, [bookings, subscriptions, reviews, payments]);
-
-  // Demo convenience: the seeded mock bookings/subscriptions belong to the demo
-  // player account, so re-point them at that account's real user id once it signs in.
-  const remapped = useRef<string | null>(null);
-  useEffect(() => {
-    if (!authUser || authUser.email !== "dastan@hotshot.kz" || remapped.current === authUser.id) return;
-    remapped.current = authUser.id;
-    const fix = <T extends { userId: string }>(rows: T[]) =>
-      rows.map((r) => (r.userId === "u1" ? { ...r, userId: authUser.id } : r));
-    setBookings((prev) => fix(prev));
-    setSubscriptions((prev) => fix(prev));
-    setPayments((prev) => fix(prev));
-    setReviews((prev) => fix(prev));
-  }, [authUser]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [subscriptions, setSubscriptions] = useState<UserSubscription[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const loadClubs = useCallback(async () => {
     setClubs(await fetchClubs());
   }, []);
 
+  const authed = !!authUser;
+
+  const loadData = useCallback(async () => {
+    const { data: reviewRows } = await supabase
+      .from("reviews")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setReviews(((reviewRows ?? []) as unknown as ReviewRow[]).map(toReview));
+
+    if (!authed) {
+      setBookings([]);
+      setSubscriptions([]);
+      setPayments([]);
+      setLoading(false);
+      return;
+    }
+
+    const [{ data: bookingRows }, { data: subRows }, { data: paymentRows }] = await Promise.all([
+      supabase.from("bookings").select("*").order("booking_date", { ascending: false }),
+      supabase.from("player_subscriptions").select("*").order("created_at", { ascending: false }),
+      supabase.from("payments").select("*").order("created_at", { ascending: false }),
+    ]);
+    setBookings(((bookingRows ?? []) as unknown as BookingRow[]).map(toBooking));
+    setSubscriptions(((subRows ?? []) as unknown as SubRow[]).map(toSub));
+    setPayments(((paymentRows ?? []) as unknown as PaymentRow[]).map(toPayment));
+    setLoading(false);
+  }, [authed]);
+
   useEffect(() => {
     void loadClubs();
-  }, [loadClubs, authUser?.id]);
+    void loadData();
+  }, [loadClubs, loadData, authUser?.id]);
 
   const value = useMemo<Store>(() => {
     const activeSubFor = (userId: string) =>
@@ -135,47 +195,65 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     return {
       clubs,
-      allUsers,
       bookings,
       subscriptions,
       reviews,
       payments,
+      loading,
       activeSubFor,
       usedHoursOn,
-      buySubscription: (planId, method) => {
-        if (!authUser) return;
+      buySubscription: async (planId, method) => {
+        if (!authUser) return false;
         const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId);
-        if (!plan) return;
+        if (!plan) return false;
         const validUntil = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
-        const sub: UserSubscription = {
-          id: id("s"),
-          userId: authUser.id,
-          planId,
-          hoursTotal: plan.hours,
-          hoursLeft: plan.hours,
-          startedAt: todayStr(),
-          validUntil,
-          status: "active",
-        };
-        setSubscriptions((prev) => [
-          sub,
-          ...prev.map((s) => (s.userId === authUser.id && s.status === "active" ? { ...s, status: "expired" as const } : s)),
-        ]);
-        setPayments((prev) => [
-          {
-            id: id("p"),
-            userId: authUser.id,
+
+        // Expire any previous active subscription for this player.
+        await supabase
+          .from("player_subscriptions")
+          .update({ status: "expired" })
+          .eq("user_id", authUser.id)
+          .eq("status", "active");
+
+        const { data, error } = await supabase
+          .from("player_subscriptions")
+          .insert({
+            user_id: authUser.id,
+            plan_id: planId,
+            hours_total: plan.hours,
+            hours_left: plan.hours,
+            started_at: todayStr(),
+            valid_until: validUntil,
+            status: "active",
+          })
+          .select("*")
+          .single();
+        if (error || !data) {
+          console.error("buySubscription", error);
+          return false;
+        }
+
+        const { data: pay } = await supabase
+          .from("payments")
+          .insert({
+            user_id: authUser.id,
             kind: "subscription",
             label: `plan.${planId}.name`,
-            amountKzt: plan.priceKzt,
+            amount_kzt: plan.priceKzt,
             method,
-            createdAt: now(),
             status: "succeeded",
-          },
-          ...prev,
+          })
+          .select("*")
+          .single();
+
+        setSubscriptions((prev) => [
+          toSub(data as unknown as SubRow),
+          ...prev.map((s) => (s.userId === authUser.id ? { ...s, status: "expired" as const } : s)),
         ]);
+        if (pay) setPayments((prev) => [toPayment(pay as unknown as PaymentRow), ...prev]);
+        return true;
       },
-      bookSlot: (input) => {
+      bookSlot: async (input) => {
         if (!authUser) return { ok: false as const, error: "noSub" as const };
         const sub = activeSubFor(authUser.id);
         if (!sub) return { ok: false as const, error: "noSub" as const };
@@ -187,60 +265,85 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (usedHoursOn(authUser.id, input.date) + input.hours > cap) {
           return { ok: false as const, error: "dailyCap" as const };
         }
-        const booking: Booking = {
-          id: id("b"),
-          code: makeBookingCode(),
-          userId: authUser.id,
-          clubId: input.clubId,
-          date: input.date,
-          startTime: input.startTime,
-          hours: input.hours,
-          status: "upcoming",
-        };
+
+        const { data, error } = await supabase
+          .from("bookings")
+          .insert({
+            code: makeBookingCode(),
+            user_id: authUser.id,
+            club_id: input.clubId,
+            player_name: authUser.name,
+            player_phone: authUser.phone,
+            booking_date: input.date,
+            start_time: input.startTime,
+            hours: input.hours,
+            status: "upcoming",
+          })
+          .select("*")
+          .single();
+        if (error || !data) {
+          console.error("bookSlot", error);
+          return { ok: false as const, error: "failed" as const };
+        }
+        const booking = toBooking(data as unknown as BookingRow);
         setBookings((prev) => [booking, ...prev]);
+
         if (sub.hoursLeft !== null) {
-          setSubscriptions((prev) =>
-            prev.map((s) => (s.id === sub.id ? { ...s, hoursLeft: Math.max(0, (s.hoursLeft ?? 0) - input.hours) } : s)),
-          );
+          const left = Math.max(0, sub.hoursLeft - input.hours);
+          await supabase.from("player_subscriptions").update({ hours_left: left }).eq("id", sub.id);
+          setSubscriptions((prev) => prev.map((s) => (s.id === sub.id ? { ...s, hoursLeft: left } : s)));
         }
         return { ok: true as const, booking };
       },
-      cancelBooking: (bookingId) => {
+      cancelBooking: async (bookingId) => {
         const target = bookings.find((b) => b.id === bookingId);
+        await supabase.from("bookings").update({ status: "cancelled" }).eq("id", bookingId);
         setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: "cancelled" } : b)));
         if (target && target.status === "upcoming") {
-          setSubscriptions((prev) =>
-            prev.map((s) =>
-              s.userId === target.userId && s.status === "active" && s.hoursLeft !== null
-                ? { ...s, hoursLeft: (s.hoursLeft ?? 0) + target.hours }
-                : s,
-            ),
-          );
+          const sub = activeSubFor(target.userId);
+          if (sub && sub.hoursLeft !== null) {
+            const left = (sub.hoursTotal ?? sub.hoursLeft) >= sub.hoursLeft + target.hours
+              ? sub.hoursLeft + target.hours
+              : sub.hoursLeft;
+            await supabase.from("player_subscriptions").update({ hours_left: left }).eq("id", sub.id);
+            setSubscriptions((prev) => prev.map((s) => (s.id === sub.id ? { ...s, hoursLeft: left } : s)));
+          }
         }
       },
-      checkInBooking: (bookingId) =>
-        setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: "active" } : b))),
-      completeBooking: (bookingId) =>
-        setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: "completed" } : b))),
-      addReview: (clubId, rating, text) => {
-        if (!authUser) return;
-        const review: Review = { id: id("r"), clubId, userId: authUser.id, rating, text, createdAt: now() };
-        setReviews((prev) => [review, ...prev]);
-        setClubs((prev) =>
-          prev.map((c) => {
-            if (c.id !== clubId) return c;
-            const count = c.reviewsCount + 1;
-            const avg = (c.rating * c.reviewsCount + rating) / count;
-            const next = { ...c, reviewsCount: count, rating: Math.round(avg * 10) / 10 };
-            void supabase
-              .from("clubs")
-              .update({ reviews_count: next.reviewsCount, rating: next.rating })
-              .eq("id", clubId);
-            return next;
-          }),
-        );
+      checkInBooking: async (bookingId) => {
+        await supabase.from("bookings").update({ status: "active" }).eq("id", bookingId);
+        setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: "active" } : b)));
       },
-      setClubStatus: (clubId, status) => {
+      completeBooking: async (bookingId) => {
+        await supabase.from("bookings").update({ status: "completed" }).eq("id", bookingId);
+        setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: "completed" } : b)));
+      },
+      addReview: async (clubId, rating, text) => {
+        if (!authUser) return;
+        const { data, error } = await supabase
+          .from("reviews")
+          .upsert(
+            {
+              club_id: clubId,
+              user_id: authUser.id,
+              author_name: authUser.name,
+              rating,
+              text,
+            },
+            { onConflict: "club_id,user_id" },
+          )
+          .select("*")
+          .single();
+        if (error || !data) {
+          console.error("addReview", error);
+          return;
+        }
+        const review = toReview(data as unknown as ReviewRow);
+        setReviews((prev) => [review, ...prev.filter((r) => r.id !== review.id)]);
+        await loadClubs();
+      },
+      setClubStatus: async (clubId, status) => {
+        await supabase.from("clubs").update({ status, rejection_reason: null }).eq("id", clubId);
         setClubs((prev) =>
           prev.map((c) => {
             if (c.id !== clubId) return c;
@@ -248,28 +351,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             return { ...rest, status };
           }),
         );
-        void supabase.from("clubs").update({ status, rejection_reason: null }).eq("id", clubId);
       },
-      rejectClub: (clubId, reason) => {
+      rejectClub: async (clubId, reason) => {
+        await supabase.from("clubs").update({ status: "rejected", rejection_reason: reason }).eq("id", clubId);
         setClubs((prev) =>
           prev.map((c) => (c.id === clubId ? { ...c, status: "rejected" as ClubStatus, rejectionReason: reason } : c)),
         );
-        void supabase.from("clubs").update({ status: "rejected", rejection_reason: reason }).eq("id", clubId);
       },
       reloadClubs: loadClubs,
-      removeClub: (clubId) => {
+      reloadData: loadData,
+      removeClub: async (clubId) => {
+        await supabase.from("clubs").delete().eq("id", clubId);
         setClubs((prev) => prev.filter((c) => c.id !== clubId));
-        void supabase.from("clubs").delete().eq("id", clubId);
       },
-      updateClub: (clubId, patch) => {
+      updateClub: async (clubId, patch) => {
+        await supabase.from("clubs").update(clubPatchToRow(patch)).eq("id", clubId);
         setClubs((prev) => prev.map((c) => (c.id === clubId ? { ...c, ...patch } : c)));
-        void supabase.from("clubs").update(clubPatchToRow(patch)).eq("id", clubId);
       },
-      findBookingByCode: (code) =>
-        bookings.find((b) => b.code.toUpperCase() === code.trim().toUpperCase()),
-      userName: (userId) => allUsers.find((u) => u.id === userId)?.name ?? "—",
+      findBookingByCode: (code) => bookings.find((b) => b.code.toUpperCase() === code.trim().toUpperCase()),
     };
-  }, [authUser, clubs, allUsers, bookings, subscriptions, reviews, payments, loadClubs]);
+  }, [authUser, clubs, bookings, subscriptions, reviews, payments, loading, loadClubs, loadData]);
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;
 }
