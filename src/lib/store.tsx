@@ -26,7 +26,8 @@ interface Store {
   loading: boolean;
   activeSubFor: (userId: string) => UserSubscription | undefined;
   usedHoursOn: (userId: string, date: string) => number;
-  buySubscription: (planId: string, method: PaymentMethod) => Promise<boolean>;
+  submitKaspiReceipt: (planId: string, receiptNumber: string) => Promise<{ ok: boolean; error?: string }>;
+  latestPaymentFor: (userId: string) => Payment | undefined;
   bookSlot: (input: {
     clubId: string;
     date: string;
