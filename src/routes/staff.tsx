@@ -42,7 +42,7 @@ function StaffPage() {
 
 function StaffInner() {
   const { user } = useAuth();
-  const { clubs, bookings, userName, checkInBooking, completeBooking, findBookingByCode } = useStore();
+  const { clubs, bookings, checkInBooking, completeBooking, findBookingByCode } = useStore();
   const { t } = useI18n();
   const [code, setCode] = useState("");
   const [found, setFound] = useState<Booking | null | "none">(null);
@@ -64,8 +64,8 @@ function StaffInner() {
       <Button
         size="sm"
         className="neon-glow"
-        onClick={() => {
-          checkInBooking(b.id);
+        onClick={async () => {
+          await checkInBooking(b.id);
           toast.success(`${b.code} · ${t("staff.checked")}`);
         }}
       >
@@ -75,8 +75,8 @@ function StaffInner() {
       <Button
         size="sm"
         variant="secondary"
-        onClick={() => {
-          completeBooking(b.id);
+        onClick={async () => {
+          await completeBooking(b.id);
           toast.success(`${b.code} · ${t("staff.completedToast")}`);
         }}
       >
@@ -103,7 +103,10 @@ function StaffInner() {
           <tbody>
             {list.map((b) => (
               <tr key={b.id} className="border-b border-border/50 last:border-0">
-                <td className="p-3 font-medium">{userName(b.userId)}</td>
+                <td className="p-3 font-medium">
+                  {b.playerName || "—"}
+                  {b.playerPhone && <span className="block text-xs text-muted-foreground">{b.playerPhone}</span>}
+                </td>
                 <td className="p-3 font-mono">{b.startTime}</td>
                 <td className="p-3">
                   {b.hours}
@@ -159,7 +162,7 @@ function StaffInner() {
               {found.code}
             </span>
             <div className="text-sm">
-              <p className="font-semibold">{userName(found.userId)}</p>
+              <p className="font-semibold">{found.playerName || "—"}</p>
               <p className="text-xs text-muted-foreground">
                 {found.date} · {found.startTime} · {found.hours}
                 {t("club.hShort")}
