@@ -17,7 +17,6 @@ import { Route as PassesRouteImport } from './routes/passes'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as StaffRouteImport } from './routes/staff'
 import { Route as ClubsClubIdRouteImport } from './routes/clubs.$clubId'
-import { Route as ApiPublicCleanupDemoRouteImport } from './routes/api/public/cleanup-demo'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -59,11 +58,6 @@ const ClubsClubIdRoute = ClubsClubIdRouteImport.update({
   path: '/clubs/$clubId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicCleanupDemoRoute = ApiPublicCleanupDemoRouteImport.update({
-  id: '/api/public/cleanup-demo',
-  path: '/api/public/cleanup-demo',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -74,7 +68,6 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/staff': typeof StaffRoute
   '/clubs/$clubId': typeof ClubsClubIdRoute
-  '/api/public/cleanup-demo': typeof ApiPublicCleanupDemoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -85,7 +78,6 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/staff': typeof StaffRoute
   '/clubs/$clubId': typeof ClubsClubIdRoute
-  '/api/public/cleanup-demo': typeof ApiPublicCleanupDemoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -97,7 +89,6 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/staff': typeof StaffRoute
   '/clubs/$clubId': typeof ClubsClubIdRoute
-  '/api/public/cleanup-demo': typeof ApiPublicCleanupDemoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -110,7 +101,6 @@ export interface FileRouteTypes {
     | '/profile'
     | '/staff'
     | '/clubs/$clubId'
-    | '/api/public/cleanup-demo'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -121,7 +111,6 @@ export interface FileRouteTypes {
     | '/profile'
     | '/staff'
     | '/clubs/$clubId'
-    | '/api/public/cleanup-demo'
   id:
     | '__root__'
     | '/'
@@ -132,7 +121,6 @@ export interface FileRouteTypes {
     | '/profile'
     | '/staff'
     | '/clubs/$clubId'
-    | '/api/public/cleanup-demo'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -144,7 +132,6 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   StaffRoute: typeof StaffRoute
   ClubsClubIdRoute: typeof ClubsClubIdRoute
-  ApiPublicCleanupDemoRoute: typeof ApiPublicCleanupDemoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -205,13 +192,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClubsClubIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/cleanup-demo': {
-      id: '/api/public/cleanup-demo'
-      path: '/api/public/cleanup-demo'
-      fullPath: '/api/public/cleanup-demo'
-      preLoaderRoute: typeof ApiPublicCleanupDemoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -224,7 +204,6 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   StaffRoute: StaffRoute,
   ClubsClubIdRoute: ClubsClubIdRoute,
-  ApiPublicCleanupDemoRoute: ApiPublicCleanupDemoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
