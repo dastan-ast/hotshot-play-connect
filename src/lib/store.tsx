@@ -203,57 +203,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       loading,
       activeSubFor,
       usedHoursOn,
-      buySubscription: async (planId, method) => {
-        if (!authUser) return false;
-        const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId);
-        if (!plan) return false;
-        const validUntil = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
-
-        // Expire any previous active subscription for this player.
-        await supabase
-          .from("player_subscriptions")
-          .update({ status: "expired" })
-          .eq("user_id", authUser.id)
-          .eq("status", "active");
-
-        const { data, error } = await supabase
-          .from("player_subscriptions")
-          .insert({
-            user_id: authUser.id,
-            plan_id: planId,
-            hours_total: plan.hours,
-            hours_left: plan.hours,
-            started_at: todayStr(),
-            valid_until: validUntil,
-            status: "active",
-          })
-          .select("*")
-          .single();
-        if (error || !data) {
-          console.error("buySubscription", error);
-          return false;
-        }
-
-        const { data: pay } = await supabase
-          .from("payments")
-          .insert({
-            user_id: authUser.id,
-            kind: "subscription",
-            label: `plan.${planId}.name`,
-            amount_kzt: plan.priceKzt,
-            method,
-            status: "succeeded",
-          })
-          .select("*")
-          .single();
-
-        setSubscriptions((prev) => [
-          toSub(data as unknown as SubRow),
-          ...prev.map((s) => (s.userId === authUser.id ? { ...s, status: "expired" as const } : s)),
-        ]);
-        if (pay) setPayments((prev) => [toPayment(pay as unknown as PaymentRow), ...prev]);
-        return true;
+      submitKaspiReceipt: async (planId: string, receiptNumber: string) => {
+        if (!authUser) return { ok: false, error: "auth" };
+        const res = await submitKaspiPayment({ data: { planId, receiptNumber } });
+        if (res.ok) await loadData();
+        return res;
       },
+      latestPaymentFor: (userId: string) => payments.find((p) => p.userId === userId),
       bookSlot: async (input) => {
         if (!authUser) return { ok: false as const, error: "noSub" as const };
         const sub = activeSubFor(authUser.id);
