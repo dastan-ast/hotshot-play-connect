@@ -89,10 +89,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    const [{ data: profile }, { data: roles }] = await Promise.all([
+    const [{ data: profile }, { data: roles }, { data: staffRows }] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", s.user.id).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", s.user.id),
+      supabase.from("club_staff").select("club_id").eq("user_id", s.user.id).limit(1),
     ]);
+    const staffClubId = staffRows?.[0]?.club_id ?? null;
 
     const dbRoles = (roles ?? []).map((r) => r.role as DbRole);
     const priority: DbRole[] = ["admin", "owner", "club_admin", "player"];
@@ -107,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: ROLE_FROM_DB[dbRole],
       city: profile?.city ?? "Astana",
       avatarInitials: initials(name),
-      ...(profile?.club_id ? { clubId: profile.club_id } : {}),
+      ...(staffClubId || profile?.club_id ? { clubId: staffClubId ?? profile?.club_id ?? "" } : {}),
     });
     setLoading(false);
   }, []);

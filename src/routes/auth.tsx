@@ -4,7 +4,6 @@ import { Flame, LogIn, MailCheck, UserPlus, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { HOME_BY_ROLE, useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import type { Role } from "@/lib/mock-db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,13 +25,6 @@ export const Route = createFileRoute("/auth")({
   }),
   component: AuthPage,
 });
-
-const DEMO_ACCOUNTS: { email: string; password: string; role: Role }[] = [
-  { email: "dastan@hotshot.kz", password: "player123", role: "player" },
-  { email: "staff@cyberdome.kz", password: "staff123", role: "clubAdmin" },
-  { email: "owner@cyberdome.kz", password: "owner123", role: "owner" },
-  { email: "admin@hotshot.play", password: "admin123", role: "admin" },
-];
 
 function AuthPage() {
   const { login, registerPlayer, registerClub, resendConfirmation, user } = useAuth();
@@ -165,40 +157,6 @@ function AuthPage() {
         </Tabs>
       </div>
 
-      <div className="neon-panel p-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("auth.demoHint")}</p>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          {DEMO_ACCOUNTS.map((a) => (
-            <button
-              key={a.email}
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                let res = await login(a.email, a.password);
-                if (!res.ok) {
-                  await fetch("/api/public/seed-demo", { method: "POST" });
-                  res = await login(a.email, a.password);
-                }
-                setBusy(false);
-                if (!res.ok) {
-                  toast.error(t("auth.invalid"));
-                  return;
-                }
-                toast.success(t("auth.welcome"));
-              }}
-              className="flex items-center gap-3 rounded-xl border border-border bg-card/60 p-3 text-left transition-all hover:border-primary/50 hover:neon-glow disabled:opacity-60"
-            >
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15">
-                <LogIn className="size-4 text-primary" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold">{t(`role.${a.role}`)}</span>
-                <span className="block truncate text-[11px] text-muted-foreground">{a.email}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

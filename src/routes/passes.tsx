@@ -145,10 +145,11 @@ function PassesPage() {
           onOpenChange={(open) => !open && setPayPlan(null)}
           title={t(`plan.${payPlan.id}.name`)}
           amount={payPlan.priceKzt}
-          onConfirm={(method) => {
-            buySubscription(payPlan.id, method);
+          onConfirm={async (method) => {
+            const ok = await buySubscription(payPlan.id, method);
             setPayPlan(null);
-            toast.success(t("passes.bought"));
+            if (ok) toast.success(t("passes.bought"));
+            else toast.error(t("passes.buyError"));
           }}
         />
       )}
