@@ -118,7 +118,10 @@ export interface Payment {
   amountKzt: number;
   method: PaymentMethod;
   createdAt: string;
-  status: "succeeded" | "pending" | "failed";
+  status: "pending" | "approved" | "rejected" | "succeeded" | "failed";
+  planId?: string | null;
+  receiptNumber?: string | null;
+  rejectionReason?: string | null;
 }
 
 // ---------------- Subscription catalogue ----------------

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useAuth } from "./auth";
 import { clubPatchToRow, fetchClubs } from "./clubs-api";
 import { supabase } from "@/integrations/supabase/client";
+import { submitKaspiPayment } from "./payments.functions";
 import {
   SUBSCRIPTION_PLANS,
   makeBookingCode,
@@ -92,6 +93,9 @@ type PaymentRow = {
   method: string;
   status: string;
   created_at: string;
+  plan_id?: string | null;
+  receipt_number?: string | null;
+  rejection_reason?: string | null;
 };
 
 const toBooking = (r: BookingRow): Booking => ({
@@ -137,6 +141,9 @@ const toPayment = (r: PaymentRow): Payment => ({
   method: r.method as PaymentMethod,
   createdAt: r.created_at.slice(0, 16).replace("T", " "),
   status: r.status as Payment["status"],
+  planId: r.plan_id ?? null,
+  receiptNumber: r.receipt_number ?? null,
+  rejectionReason: r.rejection_reason ?? null,
 });
 
 export function StoreProvider({ children }: { children: ReactNode }) {
