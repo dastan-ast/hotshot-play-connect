@@ -14,6 +14,88 @@ export type Database = {
   }
   public: {
     Tables: {
+      bookings: {
+        Row: {
+          booking_date: string
+          club_id: string
+          code: string
+          created_at: string
+          hours: number
+          id: string
+          player_name: string
+          player_phone: string
+          start_time: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          booking_date: string
+          club_id: string
+          code: string
+          created_at?: string
+          hours?: number
+          id?: string
+          player_name?: string
+          player_phone?: string
+          start_time: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          booking_date?: string
+          club_id?: string
+          code?: string
+          created_at?: string
+          hours?: number
+          id?: string
+          player_name?: string
+          player_phone?: string
+          start_time?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      club_staff: {
+        Row: {
+          club_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          club_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          club_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_staff_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clubs: {
         Row: {
           address: string
@@ -86,6 +168,78 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount_kzt: number
+          created_at: string
+          id: string
+          kind: string
+          label: string
+          method: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount_kzt?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string
+          method?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount_kzt?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string
+          method?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      player_subscriptions: {
+        Row: {
+          created_at: string
+          hours_left: number | null
+          hours_total: number | null
+          id: string
+          plan_id: string
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+          valid_until: string
+        }
+        Insert: {
+          created_at?: string
+          hours_left?: number | null
+          hours_total?: number | null
+          id?: string
+          plan_id: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          valid_until: string
+        }
+        Update: {
+          created_at?: string
+          hours_left?: number | null
+          hours_total?: number | null
+          id?: string
+          plan_id?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          valid_until?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           city: string
@@ -115,6 +269,47 @@ export type Database = {
           phone?: string
         }
         Relationships: []
+      }
+      reviews: {
+        Row: {
+          author_name: string
+          club_id: string
+          created_at: string
+          id: string
+          rating: number
+          text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          author_name?: string
+          club_id: string
+          created_at?: string
+          id?: string
+          rating: number
+          text?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          author_name?: string
+          club_id?: string
+          created_at?: string
+          id?: string
+          rating?: number
+          text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -147,6 +342,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_club_member: {
+        Args: { _club_id: string; _user_id: string }
         Returns: boolean
       }
       resubmit_club: { Args: { _club_id: string }; Returns: boolean }
