@@ -170,7 +170,20 @@ function ProfileInner() {
                   {p.createdAt} · {p.method}
                 </p>
               </div>
-              <p className="font-display font-bold text-accent">{kzt(p.amountKzt)}</p>
+              <div className="text-right">
+                <p className="font-display font-bold text-accent">{kzt(p.amountKzt)}</p>
+                <p
+                  className={
+                    p.status === "rejected"
+                      ? "text-xs text-destructive"
+                      : p.status === "pending"
+                        ? "text-xs text-muted-foreground"
+                        : "text-xs text-accent"
+                  }
+                >
+                  {t(`payStatus.${p.status}`)}
+                </p>
+              </div>
             </div>
           ))}
         </TabsContent>

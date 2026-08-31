@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { DbRole } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
-import { Building2, ShieldCheck, Ticket, Users, Wallet } from "lucide-react";
+import { Building2, Receipt, ShieldCheck, Ticket, Users, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useStore } from "@/lib/store";
@@ -13,6 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RequireRole } from "@/components/RequireRole";
+import {
+  approvePayment,
+  listPaymentRequests,
+  rejectPayment,
+  type PendingPayment,
+} from "@/lib/payments.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -99,13 +105,13 @@ function AdminInner() {
   const gmvSeries = last7Days().map((d) => ({
     day: d.slice(5),
     revenue: payments
-      .filter((p) => p.status === "succeeded" && p.createdAt.slice(0, 10) === d)
+      .filter((p) => p.status === "approved" && p.createdAt.slice(0, 10) === d)
       .reduce((sum, p) => sum + p.amountKzt, 0),
   }));
 
   const pending = clubs.filter((c) => c.status === "pending");
   const activeCount = clubs.filter((c) => c.status === "active").length;
-  const gmv = payments.filter((p) => p.status === "succeeded").reduce((s, p) => s + p.amountKzt, 0);
+  const gmv = payments.filter((p) => p.status === "approved").reduce((s, p) => s + p.amountKzt, 0);
 
   const kpis = [
     { icon: Building2, label: t("admin.kpi.clubs"), value: String(activeCount) },
@@ -144,6 +150,7 @@ function AdminInner() {
             )}
           </TabsTrigger>
           <TabsTrigger value="overview">{t("admin.tab.overview")}</TabsTrigger>
+          <TabsTrigger value="payments">{t("admin.tab.payments")}</TabsTrigger>
           <TabsTrigger value="users">{t("admin.tab.users")}</TabsTrigger>
         </TabsList>
 
@@ -302,6 +309,10 @@ function AdminInner() {
           </section>
         </TabsContent>
 
+        <TabsContent value="payments" className="mt-4">
+          <PaymentsTab />
+        </TabsContent>
+
         <TabsContent value="users" className="mt-4">
           <div className="neon-panel overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
@@ -334,6 +345,142 @@ function AdminInner() {
           </div>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function PaymentsTab() {
+  const { t } = useI18n();
+  const { reloadData } = useStore();
+  const [rows, setRows] = useState<PendingPayment[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+
+  const load = async () => {
+    try {
+      setRows(await listPaymentRequests());
+    } catch {
+      setRows([]);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const act = async (id: string, action: "approve" | "reject") => {
+    setBusy(id);
+    const res =
+      action === "approve"
+        ? await approvePayment({ data: { paymentId: id } })
+        : await rejectPayment({ data: { paymentId: id, reason: reasons[id] ?? "" } });
+    setBusy(null);
+    if (!res.ok) {
+      toast.error(t("adminPay.error"));
+      return;
+    }
+    toast.success(action === "approve" ? t("adminPay.approved") : t("adminPay.rejected"));
+    await load();
+    await reloadData();
+  };
+
+  const pendingRows = rows.filter((r) => r.status === "pending");
+  const history = rows.filter((r) => r.status !== "pending");
+
+  return (
+    <div className="space-y-6">
+      <section className="neon-panel p-5">
+        <h2 className="font-display flex items-center gap-2 text-lg font-bold">
+          <Receipt className="size-5 text-primary" /> {t("adminPay.queue")}
+          {pendingRows.length > 0 && (
+            <span className="grid size-5 place-items-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+              {pendingRows.length}
+            </span>
+          )}
+        </h2>
+        {pendingRows.length === 0 ? (
+          <p className="mt-3 text-sm text-muted-foreground">{t("adminPay.empty")}</p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {pendingRows.map((p) => (
+              <div key={p.id} className="rounded-xl border border-border bg-card/60 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">{p.playerName}</p>
+                    <p className="text-xs text-muted-foreground">{p.playerPhone}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-display text-lg font-bold text-accent">{kzt(p.amountKzt)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {p.planId ? t(`plan.${p.planId}.name`) : "—"}
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-2 text-sm">
+                  <span className="text-muted-foreground">{t("adminPay.receipt")}: </span>
+                  <b>{p.receiptNumber || "—"}</b>
+                </p>
+                <p className="text-xs text-muted-foreground">{p.createdAt.slice(0, 16).replace("T", " ")}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Button size="sm" disabled={busy === p.id} onClick={() => void act(p.id, "approve")}>
+                    {t("adminPay.approve")}
+                  </Button>
+                  <Input
+                    className="h-9 w-48"
+                    placeholder={t("adminPay.reasonPh")}
+                    value={reasons[p.id] ?? ""}
+                    onChange={(e) => setReasons((r) => ({ ...r, [p.id]: e.target.value }))}
+                  />
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={busy === p.id}
+                    onClick={() => void act(p.id, "reject")}
+                  >
+                    {t("adminPay.reject")}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="neon-panel overflow-x-auto">
+        <table className="w-full min-w-[600px] text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
+              <th className="p-3">{t("admin.col.name")}</th>
+              <th className="p-3">{t("adminPay.plan")}</th>
+              <th className="p-3">{t("adminPay.receipt")}</th>
+              <th className="p-3">{t("profile.amount")}</th>
+              <th className="p-3">{t("admin.col.status")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {history.map((p) => (
+              <tr key={p.id} className="border-b border-border/50 last:border-0">
+                <td className="p-3">{p.playerName}</td>
+                <td className="p-3 text-muted-foreground">{p.planId ? t(`plan.${p.planId}.name`) : "—"}</td>
+                <td className="p-3 text-muted-foreground">{p.receiptNumber || "—"}</td>
+                <td className="p-3">{kzt(p.amountKzt)}</td>
+                <td className="p-3">
+                  <Badge variant={p.status === "approved" ? "default" : "destructive"}>
+                    {t(`payStatus.${p.status}`)}
+                  </Badge>
+                </td>
+              </tr>
+            ))}
+            {history.length === 0 && (
+              <tr>
+                <td className="p-3 text-muted-foreground" colSpan={5}>
+                  {t("adminPay.noHistory")}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </section>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useAuth } from "./auth";
 import { clubPatchToRow, fetchClubs } from "./clubs-api";
 import { supabase } from "@/integrations/supabase/client";
+import { submitKaspiPayment } from "./payments.functions";
 import {
   SUBSCRIPTION_PLANS,
   makeBookingCode,
@@ -26,7 +27,8 @@ interface Store {
   loading: boolean;
   activeSubFor: (userId: string) => UserSubscription | undefined;
   usedHoursOn: (userId: string, date: string) => number;
-  buySubscription: (planId: string, method: PaymentMethod) => Promise<boolean>;
+  submitKaspiReceipt: (planId: string, receiptNumber: string) => Promise<{ ok: boolean; error?: string }>;
+  latestPaymentFor: (userId: string) => Payment | undefined;
   bookSlot: (input: {
     clubId: string;
     date: string;
@@ -91,6 +93,9 @@ type PaymentRow = {
   method: string;
   status: string;
   created_at: string;
+  plan_id?: string | null;
+  receipt_number?: string | null;
+  rejection_reason?: string | null;
 };
 
 const toBooking = (r: BookingRow): Booking => ({
@@ -136,6 +141,9 @@ const toPayment = (r: PaymentRow): Payment => ({
   method: r.method as PaymentMethod,
   createdAt: r.created_at.slice(0, 16).replace("T", " "),
   status: r.status as Payment["status"],
+  planId: r.plan_id ?? null,
+  receiptNumber: r.receipt_number ?? null,
+  rejectionReason: r.rejection_reason ?? null,
 });
 
 export function StoreProvider({ children }: { children: ReactNode }) {
@@ -202,57 +210,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       loading,
       activeSubFor,
       usedHoursOn,
-      buySubscription: async (planId, method) => {
-        if (!authUser) return false;
-        const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId);
-        if (!plan) return false;
-        const validUntil = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
-
-        // Expire any previous active subscription for this player.
-        await supabase
-          .from("player_subscriptions")
-          .update({ status: "expired" })
-          .eq("user_id", authUser.id)
-          .eq("status", "active");
-
-        const { data, error } = await supabase
-          .from("player_subscriptions")
-          .insert({
-            user_id: authUser.id,
-            plan_id: planId,
-            hours_total: plan.hours,
-            hours_left: plan.hours,
-            started_at: todayStr(),
-            valid_until: validUntil,
-            status: "active",
-          })
-          .select("*")
-          .single();
-        if (error || !data) {
-          console.error("buySubscription", error);
-          return false;
-        }
-
-        const { data: pay } = await supabase
-          .from("payments")
-          .insert({
-            user_id: authUser.id,
-            kind: "subscription",
-            label: `plan.${planId}.name`,
-            amount_kzt: plan.priceKzt,
-            method,
-            status: "succeeded",
-          })
-          .select("*")
-          .single();
-
-        setSubscriptions((prev) => [
-          toSub(data as unknown as SubRow),
-          ...prev.map((s) => (s.userId === authUser.id ? { ...s, status: "expired" as const } : s)),
-        ]);
-        if (pay) setPayments((prev) => [toPayment(pay as unknown as PaymentRow), ...prev]);
-        return true;
+      submitKaspiReceipt: async (planId: string, receiptNumber: string) => {
+        if (!authUser) return { ok: false, error: "auth" };
+        const res = await submitKaspiPayment({ data: { planId, receiptNumber } });
+        if (res.ok) await loadData();
+        return res;
       },
+      latestPaymentFor: (userId: string) => payments.find((p) => p.userId === userId),
       bookSlot: async (input) => {
         if (!authUser) return { ok: false as const, error: "noSub" as const };
         const sub = activeSubFor(authUser.id);
