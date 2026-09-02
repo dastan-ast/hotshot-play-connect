@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.guard_subscription_update() FROM PUBLIC, anon, authenticated;
