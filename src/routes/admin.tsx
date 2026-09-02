@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { DbRole } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
-import { Building2, Receipt, ShieldCheck, Ticket, Users, Wallet } from "lucide-react";
+import { Building2, Receipt, ShieldCheck, Ticket, Users, Wallet, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useStore } from "@/lib/store";
@@ -19,6 +19,12 @@ import {
   rejectPayment,
   type PendingPayment,
 } from "@/lib/payments.functions";
+import {
+  cancelSubscription,
+  listSubscriptions,
+  setSubscriptionHours,
+  type AdminSubscription,
+} from "@/lib/subscriptions.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -151,6 +157,7 @@ function AdminInner() {
           </TabsTrigger>
           <TabsTrigger value="overview">{t("admin.tab.overview")}</TabsTrigger>
           <TabsTrigger value="payments">{t("admin.tab.payments")}</TabsTrigger>
+          <TabsTrigger value="subs">{t("admin.tab.subs")}</TabsTrigger>
           <TabsTrigger value="users">{t("admin.tab.users")}</TabsTrigger>
         </TabsList>
 
@@ -313,6 +320,10 @@ function AdminInner() {
           <PaymentsTab />
         </TabsContent>
 
+        <TabsContent value="subs" className="mt-4">
+          <SubscriptionsTab />
+        </TabsContent>
+
         <TabsContent value="users" className="mt-4">
           <div className="neon-panel overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
@@ -345,6 +356,113 @@ function AdminInner() {
           </div>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function SubscriptionsTab() {
+  const { t } = useI18n();
+  const { reloadData } = useStore();
+  const [rows, setRows] = useState<AdminSubscription[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [hours, setHours] = useState<Record<string, string>>({});
+
+  const load = async () => {
+    try {
+      setRows(await listSubscriptions());
+    } catch {
+      setRows([]);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const after = async (ok: boolean, message: string) => {
+    setBusy(null);
+    if (!ok) {
+      toast.error(t("adminSubs.error"));
+      return;
+    }
+    toast.success(message);
+    await load();
+    await reloadData();
+  };
+
+  const saveHours = async (row: AdminSubscription) => {
+    const raw = hours[row.id];
+    const value = Number(raw);
+    if (raw === undefined || raw === "" || Number.isNaN(value)) return;
+    setBusy(row.id);
+    const res = await setSubscriptionHours({ data: { subscriptionId: row.id, hoursLeft: value } });
+    await after(res.ok, t("adminSubs.hoursSaved"));
+  };
+
+  const revoke = async (row: AdminSubscription) => {
+    setBusy(row.id);
+    const res = await cancelSubscription({ data: { subscriptionId: row.id } });
+    await after(res.ok, t("adminSubs.cancelled"));
+  };
+
+  return (
+    <div className="neon-panel p-5">
+      <h2 className="font-display flex items-center gap-2 text-lg font-bold">
+        <Ban className="size-5 text-primary" /> {t("adminSubs.title")}
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">{t("adminSubs.hint")}</p>
+      {rows.length === 0 ? (
+        <p className="mt-4 text-sm text-muted-foreground">{t("adminSubs.empty")}</p>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {rows.map((s) => (
+            <div key={s.id} className="rounded-xl border border-border bg-card/60 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold">{s.playerName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {s.playerEmail} · {s.playerPhone}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t(`plan.${s.planId}.name`)} · {s.startedAt} — {s.validUntil}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-display text-lg font-bold text-accent">
+                    {s.hoursLeft === null ? "∞" : `${s.hoursLeft}/${s.hoursTotal ?? s.hoursLeft}`}
+                  </p>
+                  <Badge variant={s.status === "active" ? "default" : "outline"}>
+                    {t(`adminSubs.status.${s.status}`)}
+                  </Badge>
+                </div>
+              </div>
+              {s.status === "active" && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {s.hoursLeft !== null && (
+                    <>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={s.hoursTotal ?? undefined}
+                        className="w-28"
+                        value={hours[s.id] ?? String(s.hoursLeft)}
+                        onChange={(e) => setHours((h) => ({ ...h, [s.id]: e.target.value }))}
+                        aria-label={t("adminSubs.hours")}
+                      />
+                      <Button size="sm" variant="secondary" disabled={busy === s.id} onClick={() => saveHours(s)}>
+                        {t("adminSubs.saveHours")}
+                      </Button>
+                    </>
+                  )}
+                  <Button size="sm" variant="destructive" disabled={busy === s.id} onClick={() => revoke(s)}>
+                    {t("adminSubs.cancel")}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
