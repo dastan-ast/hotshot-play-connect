@@ -148,10 +148,12 @@ function PassesPage() {
             <Button
               className={cn("mt-5 w-full", plan.highlight && "neon-glow")}
               variant={plan.highlight ? "default" : "secondary"}
+              disabled={lastPayment?.status === "pending"}
               onClick={() => startBuy(plan)}
             >
-              {t("passes.buy")}
+              {lastPayment?.status === "pending" ? t("kaspi.pendingTitle") : t("passes.buy")}
             </Button>
+
           </div>
         ))}
       </section>
