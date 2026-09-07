@@ -253,21 +253,7 @@ function ClubForm({
 }) {
   const { t } = useI18n();
   const [owner, setOwner] = useState({ name: "", email: "", password: "", phone: "" });
-  const [club, setClub] = useState({
-    name: "",
-    city: "Astana",
-    address: "",
-    phone: "",
-    openFrom: "10:00",
-    openTo: "02:00",
-    pricePerHour: 700,
-    totalSeats: 30,
-    specs: "",
-    description: "",
-  });
   const setO = (k: keyof typeof owner) => (v: string) => setOwner((f) => ({ ...f, [k]: v }));
-  const setC = (k: keyof typeof club) => (v: string) =>
-    setClub((f) => ({ ...f, [k]: k === "pricePerHour" || k === "totalSeats" ? Number(v) || 0 : v }));
 
   return (
     <form
@@ -278,37 +264,28 @@ function ClubForm({
           toast.error(t("auth.weakPassword"));
           return;
         }
-        void onSubmit({ ...owner, club });
+        void onSubmit({
+          ...owner,
+          club: {
+            name: owner.name.trim() || owner.email.split("@")[0] || "Club",
+            city: "Astana",
+            address: "",
+            phone: owner.phone,
+            openFrom: "10:00",
+            openTo: "02:00",
+            pricePerHour: 500,
+            totalSeats: 20,
+            specs: "",
+            description: "",
+          },
+        });
       }}
     >
       <p className="text-xs text-muted-foreground">{t("auth.clubHint")}</p>
-      <Field id="o-name" label={t("auth.name")} value={owner.name} onChange={setO("name")} placeholder="Aigerim K." />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="o-email" label={t("auth.email")} type="email" value={owner.email} onChange={setO("email")} placeholder="owner@club.kz" />
-        <Field id="o-phone" label={t("auth.phone")} value={owner.phone} onChange={setO("phone")} placeholder="+7 702 000 00 00" />
-      </div>
+      <Field id="c-name" label={t("auth.clubName")} value={owner.name} onChange={setO("name")} placeholder="CyberDome" />
+      <Field id="o-email" label={t("auth.email")} type="email" value={owner.email} onChange={setO("email")} placeholder="owner@club.kz" />
+      <Field id="o-phone" label={t("auth.phone")} value={owner.phone} onChange={setO("phone")} placeholder="+7 702 000 00 00" />
       <Field id="o-pass" label={t("auth.password")} type="password" value={owner.password} onChange={setO("password")} placeholder="••••••" />
-
-      <p className="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("auth.clubSection")}</p>
-      <Field id="c-name" label={t("auth.clubName")} value={club.name} onChange={setC("name")} placeholder="CyberDome" />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="c-city" label={t("auth.city")} value={club.city} onChange={setC("city")} placeholder="Astana" />
-        <Field id="c-phone" label={t("auth.phone")} value={club.phone} onChange={setC("phone")} placeholder="+7 7172 00 00 00" />
-      </div>
-      <Field id="c-address" label={t("auth.address")} value={club.address} onChange={setC("address")} placeholder="пр. Мангилик Ел 55" />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="c-from" label={t("auth.openFrom")} value={club.openFrom} onChange={setC("openFrom")} placeholder="10:00" />
-        <Field id="c-to" label={t("auth.openTo")} value={club.openTo} onChange={setC("openTo")} placeholder="02:00" />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="c-seats" label={t("auth.seats")} type="number" value={String(club.totalSeats)} onChange={setC("totalSeats")} />
-        <Field id="c-price" label={t("auth.price")} type="number" value={String(club.pricePerHour)} onChange={setC("pricePerHour")} />
-      </div>
-      <Field id="c-specs" label={t("auth.specs")} value={club.specs} onChange={setC("specs")} placeholder="i5-12400F · RTX 4060 · 165Hz" />
-      <div className="space-y-1.5">
-        <Label htmlFor="c-desc">{t("auth.desc")}</Label>
-        <Textarea id="c-desc" value={club.description} onChange={(e) => setC("description")(e.target.value)} rows={3} />
-      </div>
 
       <Button type="submit" className="w-full neon-glow" disabled={busy}>
         <Building2 className="size-4" /> {busy ? t("auth.loading") : t("auth.registerClub")}
@@ -316,6 +293,7 @@ function ClubForm({
     </form>
   );
 }
+
 
 function Field({
   id,
