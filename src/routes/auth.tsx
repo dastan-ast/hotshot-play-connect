@@ -26,12 +26,13 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
-  const { login, registerPlayer, registerClub, resendConfirmation, user } = useAuth();
+  const { login, registerPlayer, resendConfirmation, user } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [sentKind, setSentKind] = useState<"player" | "club">("player");
+  const [leadSent, setLeadSent] = useState(false);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("confirmed") === "1") {
