@@ -67,6 +67,51 @@ export type Database = {
           },
         ]
       }
+      club_leads: {
+        Row: {
+          city: string
+          club_id: string | null
+          club_name: string
+          created_at: string
+          email: string
+          id: string
+          note: string
+          owner_id: string | null
+          phone: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          status: string
+        }
+        Insert: {
+          city?: string
+          club_id?: string | null
+          club_name: string
+          created_at?: string
+          email: string
+          id?: string
+          note?: string
+          owner_id?: string | null
+          phone?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          status?: string
+        }
+        Update: {
+          city?: string
+          club_id?: string | null
+          club_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          note?: string
+          owner_id?: string | null
+          phone?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       club_staff: {
         Row: {
           club_id: string
