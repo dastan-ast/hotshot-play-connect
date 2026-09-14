@@ -613,3 +613,115 @@ function PaymentsTab() {
     </div>
   );
 }
+
+function LeadsTab() {
+  const { t } = useI18n();
+  const { reloadData } = useStore();
+  const [rows, setRows] = useState<ClubLead[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+
+  const load = async () => {
+    try {
+      setRows(await listClubLeads());
+    } catch {
+      setRows([]);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const act = async (id: string, action: "approve" | "reject") => {
+    setBusy(id);
+    const res =
+      action === "approve"
+        ? await approveClubLead({ data: { leadId: id, origin: window.location.origin } })
+        : await rejectClubLead({ data: { leadId: id, reason: reasons[id] ?? "" } });
+    setBusy(null);
+    if (!res.ok) {
+      toast.error(res.error ?? t("adminLead.error"));
+      return;
+    }
+    toast.success(action === "approve" ? t("adminLead.approved") : t("adminLead.rejected"));
+    await load();
+    await reloadData();
+  };
+
+  const pendingLeads = rows.filter((r) => r.status === "pending");
+  const history = rows.filter((r) => r.status !== "pending");
+
+  return (
+    <div className="space-y-6">
+      <section className="neon-panel p-5">
+        <h2 className="font-display flex items-center gap-2 text-lg font-bold">
+          <Building2 className="size-5 text-primary" /> {t("adminLead.queue")}
+          {pendingLeads.length > 0 && (
+            <span className="grid size-5 place-items-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+              {pendingLeads.length}
+            </span>
+          )}
+        </h2>
+        {pendingLeads.length === 0 ? (
+          <p className="mt-3 text-sm text-muted-foreground">{t("adminLead.empty")}</p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {pendingLeads.map((l) => (
+              <div key={l.id} className="rounded-xl border border-border bg-card/60 p-4">
+                <p className="font-semibold">{l.clubName}</p>
+                <p className="text-xs text-muted-foreground">
+                  {l.city} · {l.phone || "—"} · {l.email}
+                </p>
+                {l.note && <p className="mt-2 text-sm">{l.note}</p>}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {l.createdAt.slice(0, 16).replace("T", " ")}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Button size="sm" disabled={busy === l.id} onClick={() => void act(l.id, "approve")}>
+                    {t("adminLead.approve")}
+                  </Button>
+                  <Input
+                    className="h-9 w-48"
+                    placeholder={t("adminLead.reasonPh")}
+                    value={reasons[l.id] ?? ""}
+                    onChange={(e) => setReasons((r) => ({ ...r, [l.id]: e.target.value }))}
+                  />
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={busy === l.id}
+                    onClick={() => void act(l.id, "reject")}
+                  >
+                    {t("adminLead.reject")}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {history.length > 0 && (
+        <section className="neon-panel p-5">
+          <h2 className="font-display text-lg font-bold">{t("adminLead.history")}</h2>
+          <div className="mt-3 space-y-2">
+            {history.map((l) => (
+              <div key={l.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3 text-sm">
+                <span>
+                  <b>{l.clubName}</b>{" "}
+                  <span className="text-muted-foreground">
+                    {l.email} · {l.phone}
+                  </span>
+                </span>
+                <Badge variant={l.status === "approved" ? "default" : "destructive"}>
+                  {l.status === "approved" ? t("adminLead.approved") : l.rejectionReason || t("adminLead.rejected")}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
