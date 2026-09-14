@@ -160,14 +160,19 @@ function AuthPage() {
               busy={busy}
               onSubmit={async (input) => {
                 setBusy(true);
-                const res = await registerClub(input);
+                const { error } = await supabase.from("club_leads").insert({
+                  club_name: input.clubName.trim(),
+                  email: input.email.trim().toLowerCase(),
+                  phone: input.phone.trim(),
+                  city: input.city.trim() || "Astana",
+                  note: input.note.trim(),
+                });
                 setBusy(false);
-                if (!res.ok) {
-                  toast.error(res.error ?? t("auth.invalid"));
+                if (error) {
+                  toast.error(error.message);
                   return;
                 }
-                setSentKind("club");
-                setSentTo(input.email);
+                setLeadSent(true);
               }}
             />
           </TabsContent>
