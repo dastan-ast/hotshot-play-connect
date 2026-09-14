@@ -161,6 +161,7 @@ function AdminInner() {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="leads">{t("admin.tab.leads")}</TabsTrigger>
           <TabsTrigger value="overview">{t("admin.tab.overview")}</TabsTrigger>
           <TabsTrigger value="payments">{t("admin.tab.payments")}</TabsTrigger>
           <TabsTrigger value="subs">{t("admin.tab.subs")}</TabsTrigger>
