@@ -25,6 +25,12 @@ import {
   setSubscriptionHours,
   type AdminSubscription,
 } from "@/lib/subscriptions.functions";
+import {
+  approveClubLead,
+  listClubLeads,
+  rejectClubLead,
+  type ClubLead,
+} from "@/lib/club-leads.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
