@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as PartnerRouteImport } from './routes/partner'
 import { Route as PassesRouteImport } from './routes/passes'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as StaffRouteImport } from './routes/staff'
 import { Route as ClubsClubIdRouteImport } from './routes/clubs.$clubId'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
@@ -50,6 +51,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SetPasswordRoute = SetPasswordRouteImport.update({
+  id: '/set-password',
+  path: '/set-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StaffRoute = StaffRouteImport.update({
   id: '/staff',
   path: '/staff',
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/partner': typeof PartnerRoute
   '/passes': typeof PassesRoute
   '/profile': typeof ProfileRoute
+  '/set-password': typeof SetPasswordRoute
   '/staff': typeof StaffRoute
   '/clubs/$clubId': typeof ClubsClubIdRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/partner': typeof PartnerRoute
   '/passes': typeof PassesRoute
   '/profile': typeof ProfileRoute
+  '/set-password': typeof SetPasswordRoute
   '/staff': typeof StaffRoute
   '/clubs/$clubId': typeof ClubsClubIdRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/partner': typeof PartnerRoute
   '/passes': typeof PassesRoute
   '/profile': typeof ProfileRoute
+  '/set-password': typeof SetPasswordRoute
   '/staff': typeof StaffRoute
   '/clubs/$clubId': typeof ClubsClubIdRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/partner'
     | '/passes'
     | '/profile'
+    | '/set-password'
     | '/staff'
     | '/clubs/$clubId'
     | '/lovable/email/auth/preview'
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/partner'
     | '/passes'
     | '/profile'
+    | '/set-password'
     | '/staff'
     | '/clubs/$clubId'
     | '/lovable/email/auth/preview'
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/partner'
     | '/passes'
     | '/profile'
+    | '/set-password'
     | '/staff'
     | '/clubs/$clubId'
     | '/lovable/email/auth/preview'
@@ -154,6 +166,7 @@ export interface RootRouteChildren {
   PartnerRoute: typeof PartnerRoute
   PassesRoute: typeof PassesRoute
   ProfileRoute: typeof ProfileRoute
+  SetPasswordRoute: typeof SetPasswordRoute
   StaffRoute: typeof StaffRoute
   ClubsClubIdRoute: typeof ClubsClubIdRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -204,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/set-password': {
+      id: '/set-password'
+      path: '/set-password'
+      fullPath: '/set-password'
+      preLoaderRoute: typeof SetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/staff': {
       id: '/staff'
       path: '/staff'
@@ -242,6 +262,7 @@ const rootRouteChildren: RootRouteChildren = {
   PartnerRoute: PartnerRoute,
   PassesRoute: PassesRoute,
   ProfileRoute: ProfileRoute,
+  SetPasswordRoute: SetPasswordRoute,
   StaffRoute: StaffRoute,
   ClubsClubIdRoute: ClubsClubIdRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
