@@ -255,59 +255,39 @@ function ClubForm({
 }: {
   busy: boolean;
   onSubmit: (input: {
-    name: string;
+    clubName: string;
     email: string;
-    password: string;
     phone: string;
-    club: {
-      name: string;
-      city: string;
-      address: string;
-      phone: string;
-      openFrom: string;
-      openTo: string;
-      pricePerHour: number;
-      totalSeats: number;
-      specs: string;
-      description: string;
-    };
+    city: string;
+    note: string;
   }) => Promise<void>;
 }) {
   const { t } = useI18n();
-  const [owner, setOwner] = useState({ name: "", email: "", password: "", phone: "" });
-  const setO = (k: keyof typeof owner) => (v: string) => setOwner((f) => ({ ...f, [k]: v }));
+  const [form, setForm] = useState({ clubName: "", email: "", phone: "", city: "Astana", note: "" });
+  const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   return (
     <form
       className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
-        if (owner.password.length < 6) {
-          toast.error(t("auth.weakPassword"));
-          return;
-        }
-        void onSubmit({
-          ...owner,
-          club: {
-            name: owner.name.trim() || owner.email.split("@")[0] || "Club",
-            city: "Astana",
-            address: "",
-            phone: owner.phone,
-            openFrom: "10:00",
-            openTo: "02:00",
-            pricePerHour: 500,
-            totalSeats: 20,
-            specs: "",
-            description: "",
-          },
-        });
+        void onSubmit(form);
       }}
     >
       <p className="text-xs text-muted-foreground">{t("auth.clubHint")}</p>
-      <Field id="c-name" label={t("auth.clubName")} value={owner.name} onChange={setO("name")} placeholder="CyberDome" />
-      <Field id="o-email" label={t("auth.email")} type="email" value={owner.email} onChange={setO("email")} placeholder="owner@club.kz" />
-      <Field id="o-phone" label={t("auth.phone")} value={owner.phone} onChange={setO("phone")} placeholder="+7 702 000 00 00" />
-      <Field id="o-pass" label={t("auth.password")} type="password" value={owner.password} onChange={setO("password")} placeholder="••••••" />
+      <Field id="c-name" label={t("auth.clubName")} value={form.clubName} onChange={set("clubName")} placeholder="CyberDome" />
+      <Field id="o-email" label={t("auth.email")} type="email" value={form.email} onChange={set("email")} placeholder="owner@club.kz" />
+      <Field id="o-phone" label={t("auth.phone")} value={form.phone} onChange={set("phone")} placeholder="+7 702 000 00 00" />
+      <Field id="o-city" label={t("auth.city")} value={form.city} onChange={set("city")} placeholder="Astana" />
+      <div className="space-y-1.5">
+        <Label htmlFor="o-note">{t("lead.note")}</Label>
+        <Textarea
+          id="o-note"
+          value={form.note}
+          placeholder={t("lead.notePh")}
+          onChange={(e) => set("note")(e.target.value)}
+        />
+      </div>
 
       <Button type="submit" className="w-full neon-glow" disabled={busy}>
         <Building2 className="size-4" /> {busy ? t("auth.loading") : t("auth.registerClub")}
