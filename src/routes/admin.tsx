@@ -323,6 +323,10 @@ function AdminInner() {
           </section>
         </TabsContent>
 
+        <TabsContent value="leads" className="mt-4">
+          <LeadsTab />
+        </TabsContent>
+
         <TabsContent value="payments" className="mt-4">
           <PaymentsTab />
         </TabsContent>
