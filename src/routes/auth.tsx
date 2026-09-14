@@ -44,6 +44,23 @@ function AuthPage() {
     if (user) navigate({ to: HOME_BY_ROLE[user.role] });
   }, [user, navigate]);
 
+  if (leadSent) {
+    return (
+      <div className="mx-auto max-w-md">
+        <div className="neon-panel p-8 text-center">
+          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-primary/20 neon-glow">
+            <Building2 className="size-6 text-primary" />
+          </span>
+          <h1 className="font-display mt-4 text-xl font-bold">{t("lead.sentTitle")}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{t("lead.sentText")}</p>
+          <Button className="mt-6 w-full" variant="ghost" onClick={() => setLeadSent(false)}>
+            {t("auth.backToSignin")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (sentTo) {
     return (
       <div className="mx-auto max-w-md">
