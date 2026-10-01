@@ -162,16 +162,13 @@ function AuthPage() {
               busy={busy}
               onSubmit={async (input) => {
                 setBusy(true);
-                const { error } = await supabase.from("club_leads").insert({
-                  club_name: input.clubName.trim(),
-                  email: input.email.trim().toLowerCase(),
-                  phone: input.phone.trim(),
-                  city: input.city.trim() || "Astana",
-                  note: input.note.trim(),
-                });
+                const res = await submitClubLead({ data: input }).catch(() => ({
+                  ok: false,
+                  error: "network",
+                }));
                 setBusy(false);
-                if (error) {
-                  toast.error(error.message);
+                if (!res.ok) {
+                  toast.error(res.error ?? t("auth.invalid"));
                   return;
                 }
                 setLeadSent(true);
