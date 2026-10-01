@@ -189,6 +189,13 @@ export const approveClubLead = createServerFn({ method: "POST" })
       })
       .eq("id", lead.id);
 
+    await trySendEmail(
+      "lead-approved",
+      email,
+      { clubName: lead.club_name, actionUrl },
+      `lead-approved-${lead.id}`,
+    );
+
     return { ok: true };
   });
 
@@ -199,14 +206,26 @@ export const rejectClubLead = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
     await assertAdmin(context.supabase as never, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
+    const reason = data.reason.trim();
+    const { data: updated, error } = await supabaseAdmin
       .from("club_leads")
       .update({
         status: "rejected",
-        rejection_reason: data.reason.trim() || null,
+        rejection_reason: reason || null,
         reviewed_at: new Date().toISOString(),
       })
-      .eq("id", data.leadId);
+      .eq("id", data.leadId)
+      .select("email, club_name")
+      .maybeSingle();
     if (error) return { ok: false, error: error.message };
+
+    if (updated?.email) {
+      await trySendEmail(
+        "lead-rejected",
+        updated.email,
+        { clubName: updated.club_name, reason },
+        `lead-rejected-${data.leadId}`,
+      );
+    }
     return { ok: true };
   });
