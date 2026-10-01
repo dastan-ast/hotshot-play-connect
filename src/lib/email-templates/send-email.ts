@@ -68,6 +68,7 @@ export async function sendTemplateEmail(
   try {
     await sendLovableEmail(
       {
+        ...(options.replyTo ? { reply_to: options.replyTo } : {}),
         to: recipient,
         from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
         sender_domain: SENDER_DOMAIN,
