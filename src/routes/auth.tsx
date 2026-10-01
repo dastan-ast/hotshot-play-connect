@@ -55,6 +55,9 @@ function AuthPage() {
           </span>
           <h1 className="font-display mt-4 text-xl font-bold">{t("lead.sentTitle")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{t("lead.sentText")}</p>
+          <p className="mt-3 rounded-xl bg-primary/10 p-3 text-sm text-foreground">
+            {t("lead.spamHint")}
+          </p>
           <Button className="mt-6 w-full" variant="ghost" onClick={() => setLeadSent(false)}>
             {t("auth.backToSignin")}
           </Button>
