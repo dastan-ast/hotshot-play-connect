@@ -1,6 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+/** Email failures must never block the application workflow. */
+async function trySendEmail(
+  name: string,
+  to: string,
+  templateData: Record<string, unknown>,
+  idempotencyKey: string,
+) {
+  try {
+    const { sendTemplateEmail } = await import("@/lib/email-templates/send-email");
+    await sendTemplateEmail(name, to, { templateData, idempotencyKey });
+  } catch (e) {
+    console.error(`[club-leads] email '${name}' failed:`, e);
+  }
+}
+
 export interface ClubLead {
   id: string;
   clubName: string;
