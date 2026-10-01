@@ -175,6 +175,11 @@
   font-family: inherit;
 }
 
+/* Dark-theme filter for OSM tiles */
+.hs-tiles {
+  filter: invert(0.92) hue-rotate(190deg) brightness(0.85) contrast(0.95) saturate(0.6);
+}
+
 .leaflet-control-attribution {
   background: oklch(0.16 0.03 285 / 0.75) !important;
   color: oklch(0.55 0.03 285) !important;
