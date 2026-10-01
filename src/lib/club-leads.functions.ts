@@ -37,6 +37,35 @@ async function assertAdmin(
   if (!isAdmin) throw new Error("Forbidden");
 }
 
+/** Public: a club owner submits an application and gets a confirmation email. */
+export const submitClubLead = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { clubName: string; email: string; phone: string; city: string; note: string }) => input,
+  )
+  .handler(async ({ data }): Promise<{ ok: boolean; error?: string }> => {
+    const clubName = data.clubName.trim();
+    const email = data.email.trim().toLowerCase();
+    const phone = data.phone.trim();
+    const city = data.city.trim() || "Astana";
+    if (!clubName || !email || !phone) return { ok: false, error: "missingFields" };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("club_leads")
+      .insert({ club_name: clubName, email, phone, city, note: data.note.trim() })
+      .select("id")
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message };
+
+    await trySendEmail(
+      "lead-received",
+      email,
+      { clubName, city, phone },
+      `lead-received-${row?.id ?? email}`,
+    );
+    return { ok: true };
+  });
+
 /** SuperAdmin: every club application, newest first. */
 export const listClubLeads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -85,22 +114,33 @@ export const approveClubLead = createServerFn({ method: "POST" })
     const meta = { name: lead.club_name, phone: lead.phone, city: lead.city, role: "owner" };
     const redirectTo = `${data.origin.replace(/\/$/, "")}/set-password`;
 
+    // Generate the action link ourselves and deliver it through a branded
+    // email, so the owner always gets a working link — new account or not.
     let ownerId: string | null = null;
-    const invited = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: meta,
-      redirectTo,
+    let actionUrl: string | null = null;
+
+    const invite = await supabaseAdmin.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: { data: meta, redirectTo },
     });
-    if (invited.data?.user) {
-      ownerId = invited.data.user.id;
+    if (invite.data?.user && !invite.error) {
+      ownerId = invite.data.user.id;
+      actionUrl = invite.data.properties?.action_link ?? null;
     } else {
       // Account already exists (e.g. registered as a player) — reuse it and
       // send a password-setup link instead of a fresh invite.
       const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
       const existing = list?.users.find((u) => (u.email ?? "").toLowerCase() === email);
-      if (!existing) return { ok: false, error: invited.error?.message ?? "inviteFailed" };
+      if (!existing) return { ok: false, error: invite.error?.message ?? "inviteFailed" };
       ownerId = existing.id;
       await supabaseAdmin.auth.admin.updateUserById(ownerId, { user_metadata: meta });
-      await supabaseAdmin.auth.admin.generateLink({ type: "recovery", email, options: { redirectTo } });
+      const recovery = await supabaseAdmin.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: { redirectTo },
+      });
+      actionUrl = recovery.data?.properties?.action_link ?? null;
     }
 
     await supabaseAdmin
