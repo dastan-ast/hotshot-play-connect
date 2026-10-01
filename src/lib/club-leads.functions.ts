@@ -1,6 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+/** Email failures must never block the application workflow. */
+async function trySendEmail(
+  name: string,
+  to: string,
+  templateData: Record<string, unknown>,
+  idempotencyKey: string,
+) {
+  try {
+    const { sendTemplateEmail } = await import("@/lib/email-templates/send-email");
+    await sendTemplateEmail(name, to, { templateData, idempotencyKey });
+  } catch (e) {
+    console.error(`[club-leads] email '${name}' failed:`, e);
+  }
+}
+
 export interface ClubLead {
   id: string;
   clubName: string;
@@ -21,6 +36,35 @@ async function assertAdmin(
   const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (!isAdmin) throw new Error("Forbidden");
 }
+
+/** Public: a club owner submits an application and gets a confirmation email. */
+export const submitClubLead = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { clubName: string; email: string; phone: string; city: string; note: string }) => input,
+  )
+  .handler(async ({ data }): Promise<{ ok: boolean; error?: string }> => {
+    const clubName = data.clubName.trim();
+    const email = data.email.trim().toLowerCase();
+    const phone = data.phone.trim();
+    const city = data.city.trim() || "Astana";
+    if (!clubName || !email || !phone) return { ok: false, error: "missingFields" };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("club_leads")
+      .insert({ club_name: clubName, email, phone, city, note: data.note.trim() })
+      .select("id")
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message };
+
+    await trySendEmail(
+      "lead-received",
+      email,
+      { clubName, city, phone },
+      `lead-received-${row?.id ?? email}`,
+    );
+    return { ok: true };
+  });
 
 /** SuperAdmin: every club application, newest first. */
 export const listClubLeads = createServerFn({ method: "POST" })
@@ -70,22 +114,33 @@ export const approveClubLead = createServerFn({ method: "POST" })
     const meta = { name: lead.club_name, phone: lead.phone, city: lead.city, role: "owner" };
     const redirectTo = `${data.origin.replace(/\/$/, "")}/set-password`;
 
+    // Generate the action link ourselves and deliver it through a branded
+    // email, so the owner always gets a working link — new account or not.
     let ownerId: string | null = null;
-    const invited = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: meta,
-      redirectTo,
+    let actionUrl: string | null = null;
+
+    const invite = await supabaseAdmin.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: { data: meta, redirectTo },
     });
-    if (invited.data?.user) {
-      ownerId = invited.data.user.id;
+    if (invite.data?.user && !invite.error) {
+      ownerId = invite.data.user.id;
+      actionUrl = invite.data.properties?.action_link ?? null;
     } else {
       // Account already exists (e.g. registered as a player) — reuse it and
       // send a password-setup link instead of a fresh invite.
       const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
       const existing = list?.users.find((u) => (u.email ?? "").toLowerCase() === email);
-      if (!existing) return { ok: false, error: invited.error?.message ?? "inviteFailed" };
+      if (!existing) return { ok: false, error: invite.error?.message ?? "inviteFailed" };
       ownerId = existing.id;
       await supabaseAdmin.auth.admin.updateUserById(ownerId, { user_metadata: meta });
-      await supabaseAdmin.auth.admin.generateLink({ type: "recovery", email, options: { redirectTo } });
+      const recovery = await supabaseAdmin.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: { redirectTo },
+      });
+      actionUrl = recovery.data?.properties?.action_link ?? null;
     }
 
     await supabaseAdmin
@@ -134,6 +189,13 @@ export const approveClubLead = createServerFn({ method: "POST" })
       })
       .eq("id", lead.id);
 
+    await trySendEmail(
+      "lead-approved",
+      email,
+      { clubName: lead.club_name, actionUrl },
+      `lead-approved-${lead.id}`,
+    );
+
     return { ok: true };
   });
 
@@ -144,14 +206,26 @@ export const rejectClubLead = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
     await assertAdmin(context.supabase as never, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
+    const reason = data.reason.trim();
+    const { data: updated, error } = await supabaseAdmin
       .from("club_leads")
       .update({
         status: "rejected",
-        rejection_reason: data.reason.trim() || null,
+        rejection_reason: reason || null,
         reviewed_at: new Date().toISOString(),
       })
-      .eq("id", data.leadId);
+      .eq("id", data.leadId)
+      .select("email, club_name")
+      .maybeSingle();
     if (error) return { ok: false, error: error.message };
+
+    if (updated?.email) {
+      await trySendEmail(
+        "lead-rejected",
+        updated.email,
+        { clubName: updated.club_name, reason },
+        `lead-rejected-${data.leadId}`,
+      );
+    }
     return { ok: true };
   });

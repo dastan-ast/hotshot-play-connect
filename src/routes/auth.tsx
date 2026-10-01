@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
+import { submitClubLead } from "@/lib/club-leads.functions";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -55,6 +55,9 @@ function AuthPage() {
           </span>
           <h1 className="font-display mt-4 text-xl font-bold">{t("lead.sentTitle")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{t("lead.sentText")}</p>
+          <p className="mt-3 rounded-xl bg-primary/10 p-3 text-sm text-foreground">
+            {t("lead.spamHint")}
+          </p>
           <Button className="mt-6 w-full" variant="ghost" onClick={() => setLeadSent(false)}>
             {t("auth.backToSignin")}
           </Button>
@@ -162,16 +165,13 @@ function AuthPage() {
               busy={busy}
               onSubmit={async (input) => {
                 setBusy(true);
-                const { error } = await supabase.from("club_leads").insert({
-                  club_name: input.clubName.trim(),
-                  email: input.email.trim().toLowerCase(),
-                  phone: input.phone.trim(),
-                  city: input.city.trim() || "Astana",
-                  note: input.note.trim(),
-                });
+                const res = await submitClubLead({ data: input }).catch(() => ({
+                  ok: false,
+                  error: "network",
+                }));
                 setBusy(false);
-                if (error) {
-                  toast.error(error.message);
+                if (!res.ok) {
+                  toast.error(res.error ?? t("auth.invalid"));
                   return;
                 }
                 setLeadSent(true);
