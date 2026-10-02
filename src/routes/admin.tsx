@@ -35,9 +35,9 @@ import {
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { title: "Суперадмин — HotShot Play" },
-      { name: "description", content: "Модерация клубов, пользователи и выручка платформы HotShot Play." },
-      { property: "og:title", content: "HotShot Play — панель суперадмина" },
+      { title: "Суперадмин — HeadShot Play" },
+      { name: "description", content: "Модерация клубов, пользователи и выручка платформы HeadShot Play." },
+      { property: "og:title", content: "HeadShot Play — панель суперадмина" },
       { property: "og:description", content: "Заявки клубов, пользователи и аналитика платформы." },
       { property: "og:type", content: "website" },
     ],

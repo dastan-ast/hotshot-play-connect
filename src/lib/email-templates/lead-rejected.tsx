@@ -10,20 +10,20 @@ interface Props {
 const Email = ({ clubName, reason }: Props) => (
   <Html lang="ru" dir="ltr">
     <Head />
-    <Preview>Решение по заявке клуба — HotShot Play</Preview>
+    <Preview>Решение по заявке клуба — HeadShot Play</Preview>
     <Body style={main}>
       <Container style={container}>
         <Heading style={h1}>Заявка отклонена</Heading>
         <Text style={text}>
           К сожалению, мы пока не можем подключить клуб
-          {clubName ? ` «${clubName}»` : ''} к HotShot Play.
+          {clubName ? ` «${clubName}»` : ''} к HeadShot Play.
         </Text>
         {reason ? <Text style={reasonBox}>Причина: {reason}</Text> : null}
         <Text style={text}>
           Если считаете, что это ошибка, или хотите уточнить детали — просто ответьте
           на это письмо или подайте заявку заново с дополненными данными.
         </Text>
-        <Text style={footer}>HotShot Play — агрегатор компьютерных клубов Казахстана.</Text>
+        <Text style={footer}>HeadShot Play — агрегатор компьютерных клубов Казахстана.</Text>
       </Container>
     </Body>
   </Html>

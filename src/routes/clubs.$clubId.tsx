@@ -23,9 +23,9 @@ import { Textarea } from "@/components/ui/textarea";
 export const Route = createFileRoute("/clubs/$clubId")({
   head: () => ({
     meta: [
-      { title: "Клуб — HotShot Play" },
+      { title: "Клуб — HeadShot Play" },
       { name: "description", content: "Бронирование игровых мест, отзывы и цены клуба." },
-      { property: "og:title", content: "HotShot Play — бронирование клуба" },
+      { property: "og:title", content: "HeadShot Play — бронирование клуба" },
       { property: "og:description", content: "Выберите дату и время, оплатите часами абонемента." },
       { property: "og:type", content: "website" },
     ],
