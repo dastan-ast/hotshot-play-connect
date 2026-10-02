@@ -83,14 +83,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "HotShot Play — Computer Club Aggregator in Kazakhstan" },
+      { title: "HeadShot Play — Computer Club Aggregator in Kazakhstan" },
       {
         name: "description",
         content:
           "Book gaming PCs and PS5 seats in Astana computer clubs, buy universal gaming passes and check in with QR.",
       },
-      { name: "author", content: "HotShot Play" },
-      { property: "og:title", content: "HotShot Play — Computer Club Aggregator" },
+      { name: "author", content: "HeadShot Play" },
+      { property: "og:title", content: "HeadShot Play — Computer Club Aggregator" },
       { property: "og:description", content: "One pass for every computer club in Kazakhstan." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

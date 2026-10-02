@@ -19,9 +19,9 @@ import { RequireRole } from "@/components/RequireRole";
 export const Route = createFileRoute("/partner")({
   head: () => ({
     meta: [
-      { title: "Кабинет владельца — HotShot Play" },
-      { name: "description", content: "Финансы, отзывы и настройки клуба для владельца на HotShot Play." },
-      { property: "og:title", content: "HotShot Play — кабинет владельца клуба" },
+      { title: "Кабинет владельца — HeadShot Play" },
+      { name: "description", content: "Финансы, отзывы и настройки клуба для владельца на HeadShot Play." },
+      { property: "og:title", content: "HeadShot Play — кабинет владельца клуба" },
       { property: "og:description", content: "Выручка, брони, отзывы и настройки клуба." },
       { property: "og:type", content: "website" },
     ],

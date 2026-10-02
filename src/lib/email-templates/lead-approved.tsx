@@ -26,7 +26,7 @@ const Email = ({ clubName, actionUrl }: Props) => (
         <Heading style={h1}>Клуб одобрен</Heading>
         <Text style={text}>
           Заявка на подключение клуба{clubName ? ` «${clubName}»` : ''} одобрена.
-          Для вас создан кабинет владельца в HotShot Play.
+          Для вас создан кабинет владельца в HeadShot Play.
         </Text>
         <Text style={text}>
           Нажмите кнопку ниже, чтобы задать пароль и войти. Затем заполните адрес,
@@ -45,7 +45,7 @@ const Email = ({ clubName, actionUrl }: Props) => (
             </Text>
           </>
         ) : null}
-        <Text style={footer}>HotShot Play — агрегатор компьютерных клубов Казахстана.</Text>
+        <Text style={footer}>HeadShot Play — агрегатор компьютерных клубов Казахстана.</Text>
       </Container>
     </Body>
   </Html>
@@ -53,7 +53,7 @@ const Email = ({ clubName, actionUrl }: Props) => (
 
 export const template = {
   component: Email,
-  subject: 'Ваш клуб одобрен — вход в кабинет HotShot Play',
+  subject: 'Ваш клуб одобрен — вход в кабинет HeadShot Play',
   displayName: 'Клуб одобрен (приглашение владельца)',
   previewData: { clubName: 'CyberDome', actionUrl: 'https://headshotkz.app/set-password' },
 } satisfies TemplateEntry

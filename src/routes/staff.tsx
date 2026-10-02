@@ -15,9 +15,9 @@ import { RequireRole } from "@/components/RequireRole";
 export const Route = createFileRoute("/staff")({
   head: () => ({
     meta: [
-      { title: "Брони клуба — HotShot Play" },
+      { title: "Брони клуба — HeadShot Play" },
       { name: "description", content: "Входящие брони и отметка гостей по коду для админа клуба." },
-      { property: "og:title", content: "HotShot Play — брони клуба" },
+      { property: "og:title", content: "HeadShot Play — брони клуба" },
       { property: "og:description", content: "Проверка кодов HP-XXXX и check-in гостей." },
       { property: "og:type", content: "website" },
     ],

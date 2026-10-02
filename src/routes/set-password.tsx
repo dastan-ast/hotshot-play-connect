@@ -12,9 +12,9 @@ export const Route = createFileRoute("/set-password")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Пароль владельца клуба — HotShot Play" },
-      { name: "description", content: "Задайте пароль и войдите в кабинет владельца клуба HotShot Play." },
-      { property: "og:title", content: "HotShot Play — пароль владельца клуба" },
+      { title: "Пароль владельца клуба — HeadShot Play" },
+      { name: "description", content: "Задайте пароль и войдите в кабинет владельца клуба HeadShot Play." },
+      { property: "og:title", content: "HeadShot Play — пароль владельца клуба" },
       { property: "og:description", content: "Активация кабинета владельца клуба по приглашению." },
       { property: "og:type", content: "website" },
     ],

@@ -14,12 +14,12 @@ import { submitClubLead } from "@/lib/club-leads.functions";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Вход и регистрация — HotShot Play" },
+      { title: "Вход и регистрация — HeadShot Play" },
       {
         name: "description",
-        content: "Регистрация игроков по почте и подача заявки клуба на подключение к HotShot Play.",
+        content: "Регистрация игроков по почте и подача заявки клуба на подключение к HeadShot Play.",
       },
-      { property: "og:title", content: "HotShot Play — вход и регистрация" },
+      { property: "og:title", content: "HeadShot Play — вход и регистрация" },
       { property: "og:description", content: "Один аккаунт для игроков, клубов и владельцев." },
       { property: "og:type", content: "website" },
     ],

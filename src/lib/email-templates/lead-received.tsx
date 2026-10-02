@@ -20,13 +20,13 @@ interface Props {
 const Email = ({ clubName, city, phone }: Props) => (
   <Html lang="ru" dir="ltr">
     <Head />
-    <Preview>Заявка на подключение клуба принята — HotShot Play</Preview>
+    <Preview>Заявка на подключение клуба принята — HeadShot Play</Preview>
     <Body style={main}>
       <Container style={container}>
         <Heading style={h1}>Заявка принята</Heading>
         <Text style={text}>
           Спасибо! Мы получили заявку на подключение клуба
-          {clubName ? ` «${clubName}»` : ''} к HotShot Play.
+          {clubName ? ` «${clubName}»` : ''} к HeadShot Play.
         </Text>
         <Section style={card}>
           <Text style={row}>Клуб: {clubName || '—'}</Text>
@@ -38,7 +38,7 @@ const Email = ({ clubName, city, phone }: Props) => (
           получите письмо со ссылкой для входа в кабинет владельца клуба, где можно
           указать адрес, часы работы, цены и количество мест.
         </Text>
-        <Text style={footer}>HotShot Play — агрегатор компьютерных клубов Казахстана.</Text>
+        <Text style={footer}>HeadShot Play — агрегатор компьютерных клубов Казахстана.</Text>
       </Container>
     </Body>
   </Html>

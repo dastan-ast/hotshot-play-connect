@@ -51,7 +51,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Flame className="size-5 text-primary" />
             </span>
             <span className="font-display text-lg font-bold tracking-tight">
-              HotShot<span className="neon-text"> Play</span>
+              HeadShot<span className="neon-text"> Play</span>
             </span>
           </Link>
 
