@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Flame, Map, Ticket, User, LayoutDashboard, ShieldCheck, LogIn, LogOut, ClipboardCheck } from "lucide-react";
+import { Crosshair, Map, Ticket, User, LayoutDashboard, ShieldCheck, LogIn, LogOut, ClipboardCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:gap-6">
           <Link to="/" className="flex items-center gap-2">
             <span className="grid size-9 place-items-center rounded-xl neon-glow bg-primary/20">
-              <Flame className="size-5 text-primary" />
+              <Crosshair className="size-5 text-primary" />
             </span>
             <span className="font-display text-lg font-bold tracking-tight">
               HeadShot<span className="neon-text"> Play</span>
