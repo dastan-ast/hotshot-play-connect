@@ -53,7 +53,10 @@ export function AdminPayoutReport() {
 
   const saveRate = async (clubId: string, name: string) => {
     const v = Number(editing[clubId]);
-    if (!Number.isFinite(v) || v < 0) return toast.error("Введите корректную ставку");
+    if (!Number.isFinite(v) || v < 0) {
+      toast.error("Введите корректную ставку");
+      return;
+    }
     if (!window.confirm(`Изменить ставку для «${name}» на ${kzt(v)} за час?`)) return;
     await updateClub(clubId, { payoutRatePerHour: Math.round(v) });
     setEditing((e) => {
