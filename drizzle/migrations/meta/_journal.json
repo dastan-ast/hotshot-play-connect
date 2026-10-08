@@ -8,6 +8,13 @@
       "when": 1791441448322,
       "tag": "0000_add_moderator_role",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791463482373,
+      "tag": "0001_club_payout_rate",
+      "breakpoints": true
     }
   ]
 }
