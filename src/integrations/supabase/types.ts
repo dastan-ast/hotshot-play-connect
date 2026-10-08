@@ -408,10 +408,11 @@ export type Database = {
         Args: { _club_id: string; _user_id: string }
         Returns: boolean
       }
+      is_platform_staff: { Args: { _user_id: string }; Returns: boolean }
       resubmit_club: { Args: { _club_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "player" | "club_admin" | "owner" | "admin"
+      app_role: "player" | "club_admin" | "owner" | "admin" | "moderator"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -539,7 +540,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["player", "club_admin", "owner", "admin"],
+      app_role: ["player", "club_admin", "owner", "admin", "moderator"],
     },
   },
 } as const
