@@ -192,6 +192,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     void loadData();
   }, [loadClubs, loadData, authUser?.id]);
 
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      void loadClubs();
+      void loadData();
+    }, 5 * 60 * 1000);
+    return () => window.clearInterval(id);
+  }, [loadClubs, loadData]);
+
   const value = useMemo<Store>(() => {
     const activeSubFor = (userId: string) =>
       subscriptions.find((s) => s.userId === userId && s.status === "active" && s.validUntil >= todayStr());

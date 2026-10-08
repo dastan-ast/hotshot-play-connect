@@ -30,6 +30,7 @@ const STATUS_VARIANT: Record<BookingStatus, "default" | "secondary" | "outline" 
   active: "secondary",
   completed: "outline",
   cancelled: "destructive",
+  no_show: "destructive",
 };
 
 function ProfilePage() {

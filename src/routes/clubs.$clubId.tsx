@@ -15,7 +15,8 @@ import { toast } from "sonner";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { SUBSCRIPTION_PLANS, kzt, todayStr, type Booking, type Club } from "@/lib/mock-db";
+import { gisUrl } from "@/lib/gis";
+import { SUBSCRIPTION_PLANS, todayStr, type Booking, type Club } from "@/lib/mock-db";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -102,15 +103,26 @@ function ClubPage() {
               </span>
             </div>
           </div>
-          <div className="neon-panel cyan-glow !rounded-2xl px-5 py-4 text-center">
-            <p className="font-display text-2xl font-bold text-accent">{kzt(club.pricePerHour)}</p>
-            <p className="text-xs text-muted-foreground">{t("club.perHour")}</p>
+          <div className="flex flex-col items-end gap-2">
+            <span className="rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
+              {t("home.bySub")}
+            </span>
+            <Button asChild variant="secondary">
+              <a href={gisUrl(club)} target="_blank" rel="noopener noreferrer">
+                <MapPin className="size-4" /> {t("home.gis")}
+              </a>
+            </Button>
           </div>
         </div>
         <div className="border-t border-border px-5 py-4 sm:px-6">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("club.about")}</p>
           <p className="mt-1 text-sm">{club.description}</p>
-          <p className="mt-2 font-mono text-xs text-accent">{club.specs}</p>
+          {club.specs && (
+            <>
+              <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("club.specs")}</p>
+              <p className="mt-1 whitespace-pre-line font-mono text-sm text-accent">{club.specs}</p>
+            </>
+          )}
         </div>
       </div>
 
@@ -223,10 +235,14 @@ function BookingCard({ club }: { club: Club }) {
 
   const slots = useMemo(() => {
     const startHour = club.openFrom === "00:00" ? 9 : Number.parseInt(club.openFrom, 10);
-    const nowHour = new Date().getHours();
-    return Array.from({ length: 24 - startHour }, (_, i) => startHour + i)
-      .filter((h) => date !== todayStr() || h > nowHour)
-      .map((h) => `${String(h).padStart(2, "0")}:00`);
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const out: string[] = [];
+    for (let m = startHour * 60; m < 24 * 60; m += 30) {
+      if (date === todayStr() && m <= nowMin) continue;
+      out.push(`${String(Math.floor(m / 60)).padStart(2, "0")}:${m % 60 === 0 ? "00" : "30"}`);
+    }
+    return out;
   }, [club.openFrom, date]);
 
   const usedToday = isPlayer && user ? usedHoursOn(user.id, date) : 0;

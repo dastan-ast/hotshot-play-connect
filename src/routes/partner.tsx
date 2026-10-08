@@ -11,6 +11,7 @@ import { kzt, last7Days } from "@/lib/mock-db";
 import { addClubStaff, listClubStaff, removeClubStaff, type StaffMember } from "@/lib/staff.functions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -51,6 +52,7 @@ function PartnerInner() {
     totalSeats: club?.totalSeats ?? 0,
     openFrom: club?.openFrom ?? "10:00",
     openTo: club?.openTo ?? "02:00",
+    specs: club?.specs ?? "",
   }));
 
   useEffect(() => {
@@ -63,6 +65,7 @@ function PartnerInner() {
       totalSeats: club.totalSeats,
       openFrom: club.openFrom,
       openTo: club.openTo,
+      specs: club.specs,
     });
   }, [club?.id]);
 
@@ -255,9 +258,9 @@ function PartnerInner() {
                 <Label>{t("partner.address")}</Label>
                 <Input value={form.address} onChange={set("address")} />
               </div>
-              <div className="space-y-1.5">
-                <Label>{t("partner.price")}</Label>
-                <Input type="number" min={0} step={50} value={form.pricePerHour} onChange={set("pricePerHour")} />
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>{t("club.specs")}</Label>
+                <Textarea rows={3} value={form.specs} onChange={(e) => setForm((f) => ({ ...f, specs: e.target.value }))} placeholder="RTX 4070 · i5-13400F · 32GB · 240Hz" />
               </div>
               <div className="space-y-1.5">
                 <Label>{t("partner.seats")}</Label>

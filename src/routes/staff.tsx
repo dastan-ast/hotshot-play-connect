@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { ClipboardCheck, ScanLine, Check, Flag } from "lucide-react";
+import { ClipboardCheck, ScanLine, Check, Flag, UserX } from "lucide-react";
 import { toast } from "sonner";
+import { markBookingNoShow } from "@/lib/staff.functions";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
@@ -30,6 +31,7 @@ const STATUS_VARIANT: Record<BookingStatus, "default" | "secondary" | "outline" 
   active: "secondary",
   completed: "outline",
   cancelled: "destructive",
+  no_show: "destructive",
 };
 
 function StaffPage() {
@@ -42,7 +44,7 @@ function StaffPage() {
 
 function StaffInner() {
   const { user } = useAuth();
-  const { clubs, bookings, checkInBooking, completeBooking, findBookingByCode } = useStore();
+  const { clubs, bookings, checkInBooking, completeBooking, findBookingByCode, reloadData } = useStore();
   const { t } = useI18n();
   const [code, setCode] = useState("");
   const [found, setFound] = useState<Booking | null | "none">(null);
@@ -61,6 +63,7 @@ function StaffInner() {
 
   const action = (b: Booking) =>
     b.status === "upcoming" ? (
+      <div className="flex flex-wrap gap-1.5">
       <Button
         size="sm"
         className="neon-glow"
@@ -71,6 +74,20 @@ function StaffInner() {
       >
         <Check className="size-4" /> {t("staff.checkin")}
       </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={async () => {
+          const res = await markBookingNoShow({ data: { bookingId: b.id } });
+          if (res.ok) {
+            toast.success(`${b.code} · ${t("staff.noShowDone")}`);
+            await reloadData();
+          } else toast.error(res.error ?? "error");
+        }}
+      >
+        <UserX className="size-4" /> {t("staff.noShow")}
+      </Button>
+      </div>
     ) : b.status === "active" ? (
       <Button
         size="sm"

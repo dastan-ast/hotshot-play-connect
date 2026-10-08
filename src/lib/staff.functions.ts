@@ -84,3 +84,49 @@ export const removeClubStaff = createServerFn({ method: "POST" })
       .upsert({ user_id: data.userId, role: "player" }, { onConflict: "user_id,role" });
     return { ok: true };
   });
+
+/** Staff/owner/admin marks a booking as no-show: deducts 1 hour from the player's pass. */
+export const markBookingNoShow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { bookingId: string }) => input)
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
+    const { data: booking } = await context.supabase
+      .from("bookings")
+      .select("id, club_id, user_id, status")
+      .eq("id", data.bookingId)
+      .maybeSingle();
+    if (!booking) return { ok: false, error: "notFound" };
+    const { data: member } = await context.supabase.rpc("is_club_member", {
+      _user_id: context.userId,
+      _club_id: booking.club_id,
+    });
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!member && !isAdmin) return { ok: false, error: "forbidden" };
+    if (booking.status !== "upcoming") return { ok: false, error: "status" };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: updated } = await supabaseAdmin
+      .from("bookings")
+      .update({ status: "no_show" })
+      .eq("id", booking.id)
+      .eq("status", "upcoming")
+      .select("id");
+    if (!updated?.length) return { ok: false, error: "status" };
+
+    const { data: sub } = await supabaseAdmin
+      .from("player_subscriptions")
+      .select("id, hours_left")
+      .eq("user_id", booking.user_id)
+      .eq("status", "active")
+      .not("hours_left", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (sub && sub.hours_left !== null) {
+      await supabaseAdmin
+        .from("player_subscriptions")
+        .update({ hours_left: Math.max(0, sub.hours_left - 1) })
+        .eq("id", sub.id);
+    }
+    return { ok: true };
+  });
