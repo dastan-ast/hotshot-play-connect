@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { ClipboardCheck, ScanLine, Check, Flag } from "lucide-react";
+import { ClipboardCheck, ScanLine, Check, Flag, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { markBookingNoShow } from "@/lib/staff.functions";
 import { useStore } from "@/lib/store";
