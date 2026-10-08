@@ -33,6 +33,8 @@ export interface Club {
   openFrom: string;
   openTo: string;
   pricePerHour: number;
+  /** KZT paid by the platform to the club per confirmed played hour (set by super-admin) */
+  payoutRatePerHour?: number;
   totalSeats: number;
   specs: string;
   description: string;

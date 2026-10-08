@@ -156,6 +156,7 @@ export type Database = {
           open_from: string
           open_to: string
           owner_id: string | null
+          payout_rate_per_hour: number
           phone: string
           price_per_hour: number
           rating: number
@@ -179,6 +180,7 @@ export type Database = {
           open_from?: string
           open_to?: string
           owner_id?: string | null
+          payout_rate_per_hour?: number
           phone?: string
           price_per_hour?: number
           rating?: number
@@ -202,6 +204,7 @@ export type Database = {
           open_from?: string
           open_to?: string
           owner_id?: string | null
+          payout_rate_per_hour?: number
           phone?: string
           price_per_hour?: number
           rating?: number

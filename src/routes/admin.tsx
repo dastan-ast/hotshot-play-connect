@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RequireRole } from "@/components/RequireRole";
+import { AdminPayoutReport } from "@/components/PayoutReport";
 import {
   approvePayment,
   listPaymentRequests,
@@ -267,7 +268,12 @@ function AdminInner() {
           <TabsTrigger value="subs">{t("admin.tab.subs")}</TabsTrigger>
           <TabsTrigger value="users">{t("admin.tab.users")}</TabsTrigger>
           <TabsTrigger value="mods">{t("admin.tab.mods")}</TabsTrigger>
+          <TabsTrigger value="payouts">Отчёт и выплаты</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="payouts" className="mt-4">
+          <AdminPayoutReport />
+        </TabsContent>
 
         <TabsContent value="overview" className="mt-4">
           <div className="neon-panel p-5">
