@@ -53,7 +53,7 @@ export interface Review {
   createdAt: string;
 }
 
-export type BookingStatus = "upcoming" | "active" | "completed" | "cancelled";
+export type BookingStatus = "upcoming" | "active" | "completed" | "cancelled" | "no_show";
 
 export interface Booking {
   id: string;
