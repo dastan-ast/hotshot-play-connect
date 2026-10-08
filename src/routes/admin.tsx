@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { DbRole } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
-import { Building2, Receipt, ShieldCheck, Ticket, Users, Wallet, Ban } from "lucide-react";
+import { Building2, Receipt, ShieldCheck, Ticket, Users, Wallet, Ban, UserPlus, Trash2 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { addModerator, listModerators, removeModerator, type Moderator } from "@/lib/moderators.functions";
 import { toast } from "sonner";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useStore } from "@/lib/store";
@@ -56,14 +58,111 @@ const ROLE_VARIANT: Record<Role, "default" | "secondary" | "outline" | "destruct
   player: "secondary",
   clubAdmin: "outline",
   owner: "default",
+  moderator: "outline",
   admin: "destructive",
 };
 
 function AdminPage() {
   return (
-    <RequireRole roles={["admin"]}>
-      <AdminInner />
+    <RequireRole roles={["admin", "moderator"]}>
+      <AdminSwitch />
     </RequireRole>
+  );
+}
+
+function AdminSwitch() {
+  const { role } = useAuth();
+  return role === "admin" ? <AdminInner /> : <ModeratorInner />;
+}
+
+function ModeratorInner() {
+  const { t } = useI18n();
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-display flex items-center gap-2 text-2xl font-bold">
+          <ShieldCheck className="size-6 text-primary" /> {t("admin.modTitle")}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("admin.modSubtitle")}</p>
+      </div>
+      <Tabs defaultValue="leads">
+        <TabsList className="h-auto flex-wrap">
+          <TabsTrigger value="leads">{t("admin.tab.leads")}</TabsTrigger>
+          <TabsTrigger value="payments">{t("admin.tab.payments")}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="leads" className="mt-4"><LeadsTab /></TabsContent>
+        <TabsContent value="payments" className="mt-4"><PaymentsTab /></TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function ModeratorsTab() {
+  const [mods, setMods] = useState<Moderator[]>([]);
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const load = async () => {
+    try { setMods(await listModerators()); } catch { setMods([]); }
+  };
+  useEffect(() => { void load(); }, []);
+  const add = async () => {
+    setBusy(true);
+    try {
+      const res = await addModerator({ data: { email } });
+      if (res.ok) { toast.success("Модератор назначен"); setEmail(""); await load(); }
+      else toast.error(
+        res.error === "notFound" ? "Пользователь с таким email не найден — пусть сначала зарегистрируется"
+        : res.error === "already" ? "Этот пользователь уже модератор"
+        : res.error === "isAdmin" ? "Это суперадмин" : "Не удалось назначить",
+      );
+    } catch { toast.error("Не удалось назначить"); }
+    setBusy(false);
+  };
+  return (
+    <div className="neon-panel max-w-2xl space-y-4 p-5 sm:p-6">
+      <div>
+        <p className="font-semibold">Назначить модератора</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Модератор принимает заявки клубов и проверяет оплаты. Не видит выручку и не меняет часы игроков.
+          Человек должен быть зарегистрирован на сайте.
+        </p>
+      </div>
+      <form className="flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); void add(); }}>
+        <Input className="max-w-xs" type="email" placeholder="moderator@example.kz" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Button type="submit" className="neon-glow" disabled={busy || !email.trim()}>
+          <UserPlus className="size-4" /> Назначить
+        </Button>
+      </form>
+      {mods.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Модераторов пока нет.</p>
+      ) : (
+        <ul className="space-y-2">
+          {mods.map((m) => (
+            <li key={m.userId} className="flex items-center gap-3 rounded-xl border border-border bg-card/60 p-3">
+              <span className="grid size-9 place-items-center rounded-lg bg-primary/20 text-xs font-bold">
+                {m.name.slice(0, 2).toUpperCase()}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{m.name}</p>
+                <p className="truncate text-xs text-muted-foreground">{m.email} · с {m.since}</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  if (!confirm(`Снять права модератора у ${m.email}?`)) return;
+                  await removeModerator({ data: { userId: m.userId } });
+                  toast.success("Права модератора сняты");
+                  await load();
+                }}
+              >
+                <Trash2 className="size-4" /> Снять
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -79,6 +178,7 @@ const ROLE_LABEL: Record<DbRole, Role> = {
   player: "player",
   club_admin: "clubAdmin",
   owner: "owner",
+  moderator: "moderator",
   admin: "admin",
 };
 
@@ -152,7 +252,7 @@ function AdminInner() {
       </div>
 
       <Tabs defaultValue="clubs">
-        <TabsList>
+        <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="clubs">
             {t("admin.tab.clubs")}
             {pending.length > 0 && (
@@ -166,6 +266,7 @@ function AdminInner() {
           <TabsTrigger value="payments">{t("admin.tab.payments")}</TabsTrigger>
           <TabsTrigger value="subs">{t("admin.tab.subs")}</TabsTrigger>
           <TabsTrigger value="users">{t("admin.tab.users")}</TabsTrigger>
+          <TabsTrigger value="mods">{t("admin.tab.mods")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
@@ -333,6 +434,10 @@ function AdminInner() {
 
         <TabsContent value="subs" className="mt-4">
           <SubscriptionsTab />
+        </TabsContent>
+
+        <TabsContent value="mods" className="mt-4">
+          <ModeratorsTab />
         </TabsContent>
 
         <TabsContent value="users" className="mt-4">
