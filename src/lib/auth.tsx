@@ -12,11 +12,12 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Role, User } from "./mock-db";
 
-export type DbRole = "player" | "club_admin" | "owner" | "admin";
+export type DbRole = "player" | "club_admin" | "owner" | "moderator" | "admin";
 
 const ROLE_FROM_DB: Record<DbRole, Role> = {
   player: "player",
   club_admin: "clubAdmin",
+  moderator: "moderator",
   owner: "owner",
   admin: "admin",
 };
@@ -97,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const staffClubId = staffRows?.[0]?.club_id ?? null;
 
     const dbRoles = (roles ?? []).map((r) => r.role as DbRole);
-    const priority: DbRole[] = ["admin", "owner", "club_admin", "player"];
+    const priority: DbRole[] = ["admin", "moderator", "owner", "club_admin", "player"];
     const dbRole = priority.find((r) => dbRoles.includes(r)) ?? "player";
     const name = profile?.name || (s.user.email ?? "").split("@")[0] || "Player";
 
@@ -233,5 +234,6 @@ export const HOME_BY_ROLE: Record<Role, string> = {
   player: "/",
   clubAdmin: "/staff",
   owner: "/partner",
+  moderator: "/admin",
   admin: "/admin",
 };
