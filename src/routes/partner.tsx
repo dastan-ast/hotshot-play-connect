@@ -97,6 +97,12 @@ function PartnerInner() {
     .filter((b) => b.date.startsWith(month))
     .reduce((sum, b) => sum + b.hours * club.pricePerHour, 0);
 
+  const playedMinMonth = clubBookings
+    .filter((b) => b.date.startsWith(month) && (b.status === "active" || b.status === "completed"))
+    .reduce((sum, b) => sum + b.hours * 60, 0);
+  const payoutRate = club.payoutRatePerHour ?? 600;
+  const payoutMonth = Math.round((playedMinMonth / 60) * payoutRate);
+
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({
       ...f,
@@ -161,6 +167,14 @@ function PartnerInner() {
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
+          <div className="neon-panel p-4">
+            <p className="text-sm font-semibold">Взаиморасчёты с HeadShot Play (этот месяц)</p>
+            <div className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
+              <p>Сыграно: <b>{Math.floor(playedMinMonth / 60)} ч {playedMinMonth % 60} мин</b></p>
+              <p>Ставка: <b>{kzt(payoutRate)} / час</b> <span className="text-xs text-muted-foreground">(утверждена суперадмином)</span></p>
+              <p>К получению: <b>{kzt(payoutMonth)}</b></p>
+            </div>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { icon: Wallet, label: t("partner.kpi.revenue"), value: kzt(revenue7d) },
