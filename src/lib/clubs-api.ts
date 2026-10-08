@@ -17,6 +17,7 @@ type Row = {
   open_from: string;
   open_to: string;
   price_per_hour: number;
+  payout_rate_per_hour?: number;
   total_seats: number;
   specs: string;
   description: string;
@@ -40,6 +41,7 @@ export const rowToClub = (r: Row): Club => ({
   openFrom: r.open_from,
   openTo: r.open_to,
   pricePerHour: r.price_per_hour,
+  payoutRatePerHour: r.payout_rate_per_hour ?? 600,
   totalSeats: r.total_seats,
   specs: r.specs,
   description: r.description,
@@ -68,6 +70,7 @@ export const clubPatchToRow = (patch: Partial<Club>): ClubUpdate => {
   if (patch.openFrom !== undefined) row.open_from = patch.openFrom;
   if (patch.openTo !== undefined) row.open_to = patch.openTo;
   if (patch.pricePerHour !== undefined) row.price_per_hour = patch.pricePerHour;
+  if (patch.payoutRatePerHour !== undefined) row.payout_rate_per_hour = patch.payoutRatePerHour;
   if (patch.totalSeats !== undefined) row.total_seats = patch.totalSeats;
   if (patch.specs !== undefined) row.specs = patch.specs;
   if (patch.description !== undefined) row.description = patch.description;
