@@ -28,6 +28,10 @@ const NAV: Record<Role | "guest", NavItem[]> = {
     { to: "/", label: "nav.map", icon: Map },
     { to: "/partner", label: "nav.partner", icon: LayoutDashboard },
   ],
+  moderator: [
+    { to: "/", label: "nav.map", icon: Map },
+    { to: "/admin", label: "nav.moderation", icon: ShieldCheck },
+  ],
   admin: [
     { to: "/", label: "nav.map", icon: Map },
     { to: "/admin", label: "nav.admin", icon: ShieldCheck },

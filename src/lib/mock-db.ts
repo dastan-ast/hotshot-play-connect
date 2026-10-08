@@ -4,7 +4,7 @@
  * database; this module only holds shared types, the plan catalogue and helpers.
  */
 
-export type Role = "player" | "clubAdmin" | "owner" | "admin";
+export type Role = "player" | "clubAdmin" | "owner" | "moderator" | "admin";
 
 export interface User {
   id: string;

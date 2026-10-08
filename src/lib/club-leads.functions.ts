@@ -33,8 +33,9 @@ async function assertAdmin(
   supabase: { rpc: (n: string, a: Record<string, unknown>) => any },
   userId: string,
 ) {
-  const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-  if (!isAdmin) throw new Error("Forbidden");
+  // Admins and platform moderators may review leads and payments.
+  const { data: isStaff } = await supabase.rpc("is_platform_staff", { _user_id: userId });
+  if (!isStaff) throw new Error("Forbidden");
 }
 
 /** Public: a club owner submits an application and gets a confirmation email. */
