@@ -1,5 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { pricingQuery } from "@/lib/pricing-query";
+import { pricePlan } from "@/lib/pricing";
 import { Check, Flame, Infinity as InfinityIcon, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
@@ -12,22 +15,27 @@ import { KaspiPaymentDialog } from "@/components/KaspiPaymentDialog";
 import { Progress } from "@/components/ui/progress";
 
 export const Route = createFileRoute("/passes")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(pricingQuery),
   head: () => ({
     meta: [
       { title: "Абонементы — HeadShot Play" },
       {
         name: "description",
-        content: "Игровые абонементы HeadShot Play: 3 часа, 5 часов, 30 часов и Безлимит во всех клубах Астаны.",
+        content: "Игровые абонементы HeadShot Play: 11, 19, 27 часов и Безлимит. Актуальные цены и акции в клубах Астаны.",
       },
       { property: "og:title", content: "HeadShot Play — абонементы для игроков" },
       { property: "og:description", content: "Один абонемент — все клубы-партнёры." },
       { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: PassesPage,
 });
 
 function PassesPage() {
+  const { data: pricing } = useSuspenseQuery(pricingQuery);
+  const queryClient = useQueryClient();
+  const plans = SUBSCRIPTION_PLANS.map((plan) => pricePlan(plan, pricing.find((p) => p.plan_id === plan.id)));
   const { user, role } = useAuth();
   const { activeSubFor, latestPaymentFor, submitKaspiReceipt } = useStore();
   const { t } = useI18n();
@@ -111,7 +119,7 @@ function PassesPage() {
 
       {/* Plans */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {SUBSCRIPTION_PLANS.map((plan) => (
+        {plans.map((plan) => (
           <div
             key={plan.id}
             className={cn(
@@ -126,6 +134,7 @@ function PassesPage() {
             )}
             <h2 className="font-display text-xl font-bold">{t(`plan.${plan.id}.name`)}</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">{t(`plan.${plan.id}.tag`)}</p>
+            {plan.discountPercent > 0 && <div className="mt-3 flex flex-wrap items-center gap-2 text-sm"><span className="text-muted-foreground line-through">{kzt(plan.basePriceKzt)}</span><span className="font-bold text-primary">−{plan.discountPercent}%</span></div>}
             <p className="font-display mt-4 text-3xl font-extrabold text-accent">
               {kzt(plan.priceKzt)}
               <span className="text-xs font-medium text-muted-foreground"> {t("passes.month")}</span>
@@ -165,12 +174,16 @@ function PassesPage() {
           title={t(`plan.${payPlan.id}.name`)}
           amount={payPlan.priceKzt}
           onSubmit={async (receiptNumber) => {
-            const res = await submitKaspiReceipt(payPlan.id, receiptNumber);
+            const res = await submitKaspiReceipt(payPlan.id, receiptNumber, payPlan.priceKzt);
             if (res.ok) {
               setPayPlan(null);
               toast.success(t("kaspi.submitted"));
             } else {
-              toast.error(res.error === "alreadyPending" ? t("kaspi.alreadyPending") : t("kaspi.failed"));
+              if (res.error === "priceChanged") {
+                setPayPlan(null);
+                await queryClient.invalidateQueries({ queryKey: pricingQuery.queryKey });
+                toast.error("Цена изменилась — проверьте актуальную сумму перед оплатой");
+              } else toast.error(res.error === "alreadyPending" ? t("kaspi.alreadyPending") : t("kaspi.failed"));
             }
           }}
         />

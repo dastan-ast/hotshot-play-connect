@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Clock, Cpu, Flame, MapPin, Search, Star, Users } from "lucide-react";
+import { Clock, Cpu, Flame, MapPin, Search, Star, Users, Ticket } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 import { type Club } from "@/lib/mock-db";
@@ -24,6 +24,7 @@ export const Route = createFileRoute("/")({
         content: "Найдите клуб, выберите время и забронируйте место за секунды.",
       },
       { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: HomePage,
@@ -69,6 +70,7 @@ function HomePage() {
             {t("home.title1")} <span className="neon-text">{t("home.title2")}</span>
           </h1>
           <p className="mt-3 text-sm text-muted-foreground sm:text-base">{t("home.subtitle")}</p>
+          <Button asChild className="mt-5 neon-glow"><Link to="/passes"><Ticket className="size-4" />{t("passes.buy")}</Link></Button>
         </div>
         <div className="flex gap-6 text-sm">
           <div>

@@ -13,6 +13,7 @@ type NavItem = { to: string; label: string; icon: typeof Map };
 const NAV: Record<Role | "guest", NavItem[]> = {
   guest: [
     { to: "/", label: "nav.map", icon: Map },
+    { to: "/passes", label: "nav.subs", icon: Ticket },
     { to: "/auth", label: "auth.signin", icon: LogIn },
   ],
   player: [
@@ -34,6 +35,7 @@ const NAV: Record<Role | "guest", NavItem[]> = {
   ],
   admin: [
     { to: "/", label: "nav.map", icon: Map },
+    { to: "/passes", label: "nav.subs", icon: Ticket },
     { to: "/admin", label: "nav.admin", icon: ShieldCheck },
   ],
 };
