@@ -22,6 +22,7 @@ export const Route = createFileRoute("/auth")({
       { property: "og:title", content: "HeadShot Play — вход и регистрация" },
       { property: "og:description", content: "Один аккаунт для игроков, клубов и владельцев." },
       { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: AuthPage,

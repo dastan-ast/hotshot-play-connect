@@ -29,6 +29,7 @@ export const Route = createFileRoute("/clubs/$clubId")({
       { property: "og:title", content: "HeadShot Play — бронирование клуба" },
       { property: "og:description", content: "Выберите дату и время, оплатите часами абонемента." },
       { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: ClubPage,

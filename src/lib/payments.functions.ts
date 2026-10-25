@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { SUBSCRIPTION_PLANS } from "./mock-db";
+import { pricePlan, pricingSchema } from "./pricing";
 
 export interface PendingPayment {
   id: string;
@@ -30,12 +31,17 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 /** Player submits a Kaspi transfer receipt; the payment waits for moderation. */
 export const submitKaspiPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { planId: string; receiptNumber: string }) => input)
+  .inputValidator((input: { planId: string; receiptNumber: string; expectedAmount?: number }) => input)
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
     const plan = SUBSCRIPTION_PLANS.find((p) => p.id === data.planId);
     if (!plan) return { ok: false, error: "unknownPlan" };
     const receipt = data.receiptNumber.trim();
     if (receipt.length < 3) return { ok: false, error: "receipt" };
+
+    const { data: pricing, error: pricingError } = await context.supabase.from("subscription_pricing").select("*").eq("plan_id", plan.id).maybeSingle();
+    if (pricingError) return { ok: false, error: "pricingUnavailable" };
+    const current = pricePlan(plan, pricing ? pricingSchema.parse(pricing) : undefined);
+    if (data.expectedAmount !== undefined && data.expectedAmount !== current.priceKzt) return { ok: false, error: "priceChanged" };
 
     const { data: existing } = await context.supabase
       .from("payments")
@@ -50,7 +56,7 @@ export const submitKaspiPayment = createServerFn({ method: "POST" })
       kind: "subscription",
       plan_id: plan.id,
       label: `plan.${plan.id}.name`,
-      amount_kzt: plan.priceKzt,
+      amount_kzt: current.priceKzt,
       method: "Kaspi Transfer",
       receipt_number: receipt,
       status: "pending",

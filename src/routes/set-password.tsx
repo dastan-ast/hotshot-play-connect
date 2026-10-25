@@ -17,6 +17,7 @@ export const Route = createFileRoute("/set-password")({
       { property: "og:title", content: "HeadShot Play — пароль владельца клуба" },
       { property: "og:description", content: "Активация кабинета владельца клуба по приглашению." },
       { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: SetPasswordPage,

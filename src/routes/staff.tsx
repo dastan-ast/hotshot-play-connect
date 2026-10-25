@@ -21,6 +21,7 @@ export const Route = createFileRoute("/staff")({
       { property: "og:title", content: "HeadShot Play — брони клуба" },
       { property: "og:description", content: "Проверка кодов HP-XXXX и check-in гостей." },
       { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: StaffPage,

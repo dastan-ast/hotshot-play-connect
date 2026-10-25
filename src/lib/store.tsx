@@ -27,7 +27,7 @@ interface Store {
   loading: boolean;
   activeSubFor: (userId: string) => UserSubscription | undefined;
   usedHoursOn: (userId: string, date: string) => number;
-  submitKaspiReceipt: (planId: string, receiptNumber: string) => Promise<{ ok: boolean; error?: string }>;
+  submitKaspiReceipt: (planId: string, receiptNumber: string, expectedAmount?: number) => Promise<{ ok: boolean; error?: string }>;
   latestPaymentFor: (userId: string) => Payment | undefined;
   bookSlot: (input: {
     clubId: string;
@@ -219,9 +219,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       loading,
       activeSubFor,
       usedHoursOn,
-      submitKaspiReceipt: async (planId: string, receiptNumber: string) => {
+      submitKaspiReceipt: async (planId: string, receiptNumber: string, expectedAmount?: number) => {
         if (!authUser) return { ok: false, error: "auth" };
-        const res = await submitKaspiPayment({ data: { planId, receiptNumber } });
+        const res = await submitKaspiPayment({ data: { planId, receiptNumber, ...(expectedAmount !== undefined ? { expectedAmount } : {}) } });
         if (res.ok) await loadData();
         return res;
       },

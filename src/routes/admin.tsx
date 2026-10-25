@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RequireRole } from "@/components/RequireRole";
 import { AdminPayoutReport } from "@/components/PayoutReport";
+import { PricingSettings } from "@/components/PricingSettings";
 import {
   approvePayment,
   listPaymentRequests,
@@ -43,6 +44,7 @@ export const Route = createFileRoute("/admin")({
       { property: "og:title", content: "HeadShot Play — панель суперадмина" },
       { property: "og:description", content: "Заявки клубов, пользователи и аналитика платформы." },
       { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: AdminPage,
@@ -269,8 +271,10 @@ function AdminInner() {
           <TabsTrigger value="users">{t("admin.tab.users")}</TabsTrigger>
           <TabsTrigger value="mods">{t("admin.tab.mods")}</TabsTrigger>
           <TabsTrigger value="payouts">Отчёт и выплаты</TabsTrigger>
+          <TabsTrigger value="pricing">Цены и акции</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="pricing" className="mt-4"><PricingSettings /></TabsContent>
         <TabsContent value="payouts" className="mt-4">
           <AdminPayoutReport />
         </TabsContent>

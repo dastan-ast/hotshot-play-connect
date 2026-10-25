@@ -25,6 +25,7 @@ export const Route = createFileRoute("/partner")({
       { property: "og:title", content: "HeadShot Play — кабинет владельца клуба" },
       { property: "og:description", content: "Выручка, брони, отзывы и настройки клуба." },
       { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: PartnerPage,

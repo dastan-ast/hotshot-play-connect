@@ -20,6 +20,7 @@ export const Route = createFileRoute("/profile")({
       { property: "og:title", content: "HeadShot Play — профиль игрока" },
       { property: "og:description", content: "Брони, коды входа и абонемент." },
       { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: ProfilePage,
