@@ -14,6 +14,7 @@ import { kzt, last7Days, type ClubStatus, type Role } from "@/lib/mock-db";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UsersManager } from "@/components/UsersManager";
 import { RequireRole } from "@/components/RequireRole";
 import { AdminPayoutReport } from "@/components/PayoutReport";
 import { PricingSettings } from "@/components/PricingSettings";
@@ -451,35 +452,7 @@ function AdminInner() {
         </TabsContent>
 
         <TabsContent value="users" className="mt-4">
-          <div className="neon-panel overflow-x-auto">
-            <table className="w-full min-w-[560px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="p-3">{t("admin.col.name")}</th>
-                  <th className="p-3">{t("admin.col.email")}</th>
-                  <th className="p-3">{t("admin.col.role")}</th>
-                  <th className="p-3">{t("admin.col.city")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allUsers.map((u) => (
-                  <tr key={u.id} className="border-b border-border/50 last:border-0">
-                    <td className="p-3">
-                      <span className="mr-2 inline-grid size-7 place-items-center rounded-lg bg-primary/20 align-middle text-[10px] font-bold">
-                        {u.name.slice(0, 2).toUpperCase()}
-                      </span>
-                      {u.name}
-                    </td>
-                    <td className="p-3 text-muted-foreground">{u.email}</td>
-                    <td className="p-3">
-                      <Badge variant={ROLE_VARIANT[u.role]}>{t(`role.${u.role}`)}</Badge>
-                    </td>
-                    <td className="p-3 text-muted-foreground">{u.city}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <UsersManager />
         </TabsContent>
       </Tabs>
     </div>
