@@ -12,7 +12,11 @@ export type Lang = (typeof LANGS)[number]["code"];
 type Dict = Record<string, string>;
 
 const en: Dict = {
-  "nav.map": "Map",
+  "nav.map": "Clubs",
+  "home.f247": "24/7",
+  "home.topHw": "Top hardware",
+  "home.openBadge": "Open",
+  "home.closedBadge": "Closed",
   "nav.subs": "Subscriptions",
   "nav.profile": "Profile",
   "nav.staff": "Club bookings",
@@ -310,7 +314,11 @@ const en: Dict = {
 };
 
 const ru: Dict = {
-  "nav.map": "Карта",
+  "nav.map": "Клубы",
+  "home.f247": "24/7",
+  "home.topHw": "Топ железо",
+  "home.openBadge": "Открыто",
+  "home.closedBadge": "Закрыто",
   "nav.subs": "Абонементы",
   "nav.profile": "Профиль",
   "nav.staff": "Брони клуба",
@@ -608,7 +616,11 @@ const ru: Dict = {
 };
 
 const kk: Dict = {
-  "nav.map": "Карта",
+  "nav.map": "Клубтар",
+  "home.f247": "24/7",
+  "home.topHw": "Топ жабдық",
+  "home.openBadge": "Ашық",
+  "home.closedBadge": "Жабық",
   "nav.subs": "Жазылымдар",
   "nav.profile": "Профиль",
   "nav.staff": "Клуб брондары",

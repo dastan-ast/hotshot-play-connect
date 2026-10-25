@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Crosshair, Map, Ticket, User, LayoutDashboard, ShieldCheck, LogIn, LogOut, ClipboardCheck } from "lucide-react";
+import { Crosshair, Monitor, Ticket, User, LayoutDashboard, ShieldCheck, LogIn, LogOut, ClipboardCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -8,33 +8,33 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import type { Role } from "@/lib/mock-db";
 
-type NavItem = { to: string; label: string; icon: typeof Map };
+type NavItem = { to: string; label: string; icon: typeof Monitor };
 
 const NAV: Record<Role | "guest", NavItem[]> = {
   guest: [
-    { to: "/", label: "nav.map", icon: Map },
+    { to: "/", label: "nav.map", icon: Monitor },
     { to: "/passes", label: "nav.subs", icon: Ticket },
     { to: "/auth", label: "auth.signin", icon: LogIn },
   ],
   player: [
-    { to: "/", label: "nav.map", icon: Map },
+    { to: "/", label: "nav.map", icon: Monitor },
     { to: "/passes", label: "nav.subs", icon: Ticket },
     { to: "/profile", label: "nav.profile", icon: User },
   ],
   clubAdmin: [
-    { to: "/", label: "nav.map", icon: Map },
+    { to: "/", label: "nav.map", icon: Monitor },
     { to: "/staff", label: "nav.staff", icon: ClipboardCheck },
   ],
   owner: [
-    { to: "/", label: "nav.map", icon: Map },
+    { to: "/", label: "nav.map", icon: Monitor },
     { to: "/partner", label: "nav.partner", icon: LayoutDashboard },
   ],
   moderator: [
-    { to: "/", label: "nav.map", icon: Map },
+    { to: "/", label: "nav.map", icon: Monitor },
     { to: "/admin", label: "nav.moderation", icon: ShieldCheck },
   ],
   admin: [
-    { to: "/", label: "nav.map", icon: Map },
+    { to: "/", label: "nav.map", icon: Monitor },
     { to: "/passes", label: "nav.subs", icon: Ticket },
     { to: "/admin", label: "nav.admin", icon: ShieldCheck },
   ],
