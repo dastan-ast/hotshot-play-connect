@@ -221,7 +221,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       usedHoursOn,
       submitKaspiReceipt: async (planId: string, receiptNumber: string, expectedAmount?: number) => {
         if (!authUser) return { ok: false, error: "auth" };
-        const res = await submitKaspiPayment({ data: { planId, receiptNumber, expectedAmount } });
+        const res = await submitKaspiPayment({ data: { planId, receiptNumber, ...(expectedAmount !== undefined ? { expectedAmount } : {}) } });
         if (res.ok) await loadData();
         return res;
       },
