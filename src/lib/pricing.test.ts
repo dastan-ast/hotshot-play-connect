@@ -1,4 +1,5 @@
-import { describe, expect, it } from "bun:test";
+import { describe, it } from "node:test";
+import { strictEqual } from "node:assert";
 import { SUBSCRIPTION_PLANS } from "./mock-db";
 import { pricePlan, pricingDefaults, pricingSchema, pricingDay } from "./pricing";
 
@@ -6,6 +7,7 @@ const plan = SUBSCRIPTION_PLANS[0];
 if (!plan) throw new Error("Missing plan");
 const initial = pricingDefaults()[0];
 if (!initial) throw new Error("Missing pricing");
+const expect = (actual: unknown) => ({ toBe: (expected: unknown) => strictEqual(actual, expected) });
 describe("Subscription prices and promotions", () => {
   it("uses stored base price", () => expect(pricePlan(plan, { ...initial, base_price_kzt: 10000 }).priceKzt).toBe(10000));
   it("applies an enabled percentage discount", () => expect(pricePlan(plan, { ...initial, promotion_enabled: true, discount_percent: 20 }).priceKzt).toBe(6392));
