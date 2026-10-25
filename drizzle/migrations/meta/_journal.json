@@ -15,6 +15,13 @@
       "when": 1791463482373,
       "tag": "0001_club_payout_rate",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792904309751,
+      "tag": "0002_subscription_pricing_promotions",
+      "breakpoints": true
     }
   ]
 }

@@ -374,6 +374,36 @@ export type Database = {
           },
         ]
       }
+      subscription_pricing: {
+        Row: {
+          base_price_kzt: number
+          discount_percent: number
+          plan_id: string
+          promotion_enabled: boolean
+          promotion_end: string | null
+          promotion_start: string | null
+          updated_at: string
+        }
+        Insert: {
+          base_price_kzt: number
+          discount_percent?: number
+          plan_id: string
+          promotion_enabled?: boolean
+          promotion_end?: string | null
+          promotion_start?: string | null
+          updated_at?: string
+        }
+        Update: {
+          base_price_kzt?: number
+          discount_percent?: number
+          plan_id?: string
+          promotion_enabled?: boolean
+          promotion_end?: string | null
+          promotion_start?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
