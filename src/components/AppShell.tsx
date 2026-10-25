@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import type { Role } from "@/lib/mock-db";
 
-type NavItem = { to: string; label: string; icon: typeof Map };
+type NavItem = { to: string; label: string; icon: typeof Monitor };
 
 const NAV: Record<Role | "guest", NavItem[]> = {
   guest: [
