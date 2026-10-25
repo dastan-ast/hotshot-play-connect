@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Crosshair, Map, Ticket, User, LayoutDashboard, ShieldCheck, LogIn, LogOut, ClipboardCheck } from "lucide-react";
+import { Crosshair, Monitor, Ticket, User, LayoutDashboard, ShieldCheck, LogIn, LogOut, ClipboardCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
