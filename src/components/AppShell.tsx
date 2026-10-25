@@ -51,7 +51,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen pb-24 md:pb-0">
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:gap-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:gap-6">
           <Link to="/" className="flex items-center gap-2">
             <span className="grid size-9 place-items-center rounded-xl neon-glow bg-primary/20">
               <Crosshair className="size-5 text-primary" />
@@ -125,7 +125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             ) : (
               <Button size="sm" asChild>
                 <Link to="/auth">
-                  <LogIn className="size-4" /> {t("auth.signin")}
+                  <LogIn className="size-4" /> <span className="hidden sm:inline">{t("auth.signin")}</span><span className="sr-only sm:hidden">{t("auth.signin")}</span>
                 </Link>
               </Button>
             )}
