@@ -12,29 +12,29 @@ type NavItem = { to: string; label: string; icon: typeof Map };
 
 const NAV: Record<Role | "guest", NavItem[]> = {
   guest: [
-    { to: "/", label: "nav.map", icon: Map },
+    { to: "/", label: "nav.map", icon: Monitor },
     { to: "/passes", label: "nav.subs", icon: Ticket },
     { to: "/auth", label: "auth.signin", icon: LogIn },
   ],
   player: [
-    { to: "/", label: "nav.map", icon: Map },
+    { to: "/", label: "nav.map", icon: Monitor },
     { to: "/passes", label: "nav.subs", icon: Ticket },
     { to: "/profile", label: "nav.profile", icon: User },
   ],
   clubAdmin: [
-    { to: "/", label: "nav.map", icon: Map },
+    { to: "/", label: "nav.map", icon: Monitor },
     { to: "/staff", label: "nav.staff", icon: ClipboardCheck },
   ],
   owner: [
-    { to: "/", label: "nav.map", icon: Map },
+    { to: "/", label: "nav.map", icon: Monitor },
     { to: "/partner", label: "nav.partner", icon: LayoutDashboard },
   ],
   moderator: [
-    { to: "/", label: "nav.map", icon: Map },
+    { to: "/", label: "nav.map", icon: Monitor },
     { to: "/admin", label: "nav.moderation", icon: ShieldCheck },
   ],
   admin: [
-    { to: "/", label: "nav.map", icon: Map },
+    { to: "/", label: "nav.map", icon: Monitor },
     { to: "/passes", label: "nav.subs", icon: Ticket },
     { to: "/admin", label: "nav.admin", icon: ShieldCheck },
   ],
